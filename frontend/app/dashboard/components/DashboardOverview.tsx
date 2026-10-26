@@ -1,438 +1,27 @@
 "use client";
 
 import { useState } from "react";
+import { CheckIcon, ClockIcon, DocumentIcon, XIcon } from "./DashboardIcons";
 
-function BellIcon() {
-  return (
-    <svg
-      width="30"
-      height="30"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" />
-      <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-    </svg>
-  );
-}
+type DashboardStats = {
+  total: number;
+  diproses: number;
+  selesai: number;
+  ditolak: number;
+};
 
-function UserIcon() {
-  return (
-    <svg
-      width="25"
-      height="25"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <circle cx="12" cy="8" r="3.5" />
-      <path d="M5 20c.8-3.5 3.1-5 7-5s6.2 1.5 7 5" />
-    </svg>
-  );
-}
-
-function HomeIcon() {
-  return (
-    <svg
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M3 10.5 12 3l9 7.5" />
-      <path d="M5 9.5V21h14V9.5" />
-      <path d="M9 21v-7h6v7" />
-    </svg>
-  );
-}
-
-function DocumentIcon() {
-  return (
-    <svg
-      width="23"
-      height="23"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.9"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <rect x="5" y="3" width="14" height="18" rx="2" />
-      <path d="M8 8h8" />
-      <path d="M8 12h8" />
-      <path d="M8 16h5" />
-    </svg>
-  );
-}
-
-function PeopleIcon() {
-  return (
-    <svg
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.9"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <circle cx="12" cy="8" r="3" />
-      <path d="M5 20c.7-3.3 3-5 7-5s6.3 1.7 7 5" />
-    </svg>
-  );
-}
-
-function SettingsIcon() {
-  return (
-    <svg
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <circle cx="12" cy="12" r="3" />
-      <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-1.8 1.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5v.1h-2.5v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1-1.8-1.8.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H6.5v-2.5h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1 1.8-1.8.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.5v-.1H15v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1 1.8 1.8-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.5 1h.1V14h-.1a1.7 1.7 0 0 0-1.5 1Z" />
-    </svg>
-  );
-}
-
-function LogoutIcon() {
-  return (
-    <svg
-      width="23"
-      height="23"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.9"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M10 17l5-5-5-5" />
-      <path d="M15 12H3" />
-      <path d="M21 4v16" />
-    </svg>
-  );
-}
-
-function CheckIcon() {
-  return (
-    <svg
-      width="21"
-      height="21"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="m5 12 4 4L19 6" />
-    </svg>
-  );
-}
-
-function XIcon() {
-  return (
-    <svg
-      width="21"
-      height="21"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M6 6l12 12" />
-      <path d="M18 6 6 18" />
-    </svg>
-  );
-}
-
-function ClockIcon() {
-  return (
-    <svg
-      width="21"
-      height="21"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <circle cx="12" cy="12" r="9" />
-      <path d="M12 7v5l3 2" />
-    </svg>
-  );
-}
-
-export default function DashboardPage({
-  onDataLaporan,
-  onDataWarga,
-  onOpenDetail,
-  onPengaturan,
-  onProfile,
-}: {
-  onDataLaporan: () => void;
-  onDataWarga: () => void;
+type DashboardOverviewProps = {
+  stats: DashboardStats;
   onOpenDetail: () => void;
-  onPengaturan: () => void;
-  onProfile?: () => void;
-}) {
+  onDataLaporan: () => void;
+};
+
+export default function DashboardOverview({ stats, onOpenDetail, onDataLaporan }: DashboardOverviewProps) {
   const [filterHari, setFilterHari] = useState("7 hari terakhir");
   const [filterOpen, setFilterOpen] = useState(false);
   const [ringkasanOpen, setRingkasanOpen] = useState(false);
-  const [notificationOpen, setNotificationOpen] = useState(false);
 
-  return (
-    <main className="min-h-screen bg-[#F8FAFC] font-[var(--font-poppins)] text-[#14294A]">
-
-      {/* SIDEBAR */}
-      <aside className="fixed left-0 top-0 z-20 h-screen w-[244px] border-r border-[#D9DEE5] bg-[#F8FAFC]">
-
-        <div className="flex h-[110px] items-center justify-center">
-          <img
-            src="/login-logo.png"
-            alt="LaporDesa"
-            className="w-[190px] object-contain"
-          />
-        </div>
-
-        <nav className="mt-[36px] px-[25px]">
-
-          {/* DASHBOARD */}
-          <button
-            type="button"
-            className="
-              mb-3
-              flex h-[52px] w-full
-              items-center gap-4
-              rounded-[13px]
-              bg-[#B9E4D8]
-              px-4
-              text-left
-              text-[16px]
-              font-semibold
-              text-[#14294A]
-            "
-          >
-            <HomeIcon />
-            <span>Dashboard</span>
-          </button>
-
-          {/* DATA LAPORAN */}
-          <button
-            type="button"
-            onClick={onDataLaporan}
-            className="
-              mb-3
-              flex h-[52px] w-full
-              items-center gap-4
-              rounded-[13px]
-              px-4
-              text-left
-              text-[16px]
-              font-semibold
-              text-[#14294A]
-              hover:bg-[#EAF5F2]
-            "
-          >
-            <DocumentIcon />
-            <span>Data Laporan</span>
-          </button>
-
-          {/* DATA WARGA */}
-          <button
-            type="button"
-            onClick={onDataWarga}
-            className="
-              mb-3
-              flex h-[52px] w-full
-              items-center gap-4
-              rounded-[13px]
-              px-4
-              text-left
-              text-[16px]
-              font-semibold
-              text-[#14294A]
-              hover:bg-[#EAF5F2]
-            "
-          >
-            <PeopleIcon />
-            <span>Data Warga</span>
-          </button>
-
-          {/* PENGATURAN */}
-          <button
-            type="button"
-            onClick={onPengaturan}
-            className="
-              flex h-[52px] w-full
-              items-center gap-4
-              rounded-[13px]
-              px-4
-              text-left
-              text-[16px]
-              font-semibold
-              text-[#14294A]
-              hover:bg-[#EAF5F2]
-            "
-          >
-            <SettingsIcon />
-            <span>Pengaturan</span>
-          </button>
-
-        </nav>
-
-        {/* LOGOUT */}
-        <div className="absolute bottom-0 left-0 w-full border-t border-[#D9DEE5] p-[25px]">
-          <button
-            type="button"
-            className="
-              flex h-[48px] w-full
-              items-center gap-4
-              rounded-[13px]
-              px-4
-              text-left
-              text-[15px]
-              font-semibold
-              text-[#14294A]
-              hover:bg-[#EAF5F2]
-            "
-          >
-            <LogoutIcon />
-            <span>Keluar</span>
-          </button>
-        </div>
-
-      </aside>
-
-      {/* MAIN */}
-      <section className="ml-[244px] min-h-screen">
-
-        {/* HEADER */}
-        <header className="flex h-[74px] items-center justify-between border-b border-[#D9DEE5] bg-[#F8FAFC] px-[24px]">
-
-          <div className="w-[493px]">
-            <input
-              type="text"
-              placeholder="Cari laporan, warga, atau kata kunci..."
-              className="
-                h-[40px]
-                w-full
-                rounded-[7px]
-                border
-                border-[#C9D0D8]
-                bg-white
-                px-3
-                text-[14px]
-                text-[#334155]
-                outline-none
-                placeholder:text-[#6B7280]
-                focus:border-[#00B686]
-              "
-            />
-          </div>
-
-          <div className="flex items-center gap-[20px]">
-
-            {/* NOTIFICATION */}
-            <div className="relative">
-
-              <button
-                type="button"
-                onClick={() =>
-                  setNotificationOpen((prev) => !prev)
-                }
-                className="text-[#14294A]"
-              >
-                <BellIcon />
-              </button>
-
-              {notificationOpen && (
-                <div className="absolute right-0 top-[42px] z-[9999] w-[300px] rounded-[10px] border border-[#D9DEE5] bg-white p-[16px] shadow-lg">
-
-                  <div className="mb-[12px] flex items-center justify-between">
-                    <h3 className="text-[14px] font-bold text-[#14294A]">
-                      Notifikasi
-                    </h3>
-
-                    <button
-                      type="button"
-                      onClick={() => setNotificationOpen(false)}
-                      className="text-[18px] text-[#64748B]"
-                    >
-                      ×
-                    </button>
-                  </div>
-
-                  <div className="border-b border-[#E1E7ED] pb-[12px]">
-                    <p className="text-[12px] font-semibold text-[#14294A]">
-                      Laporan baru diterima
-                    </p>
-
-                    <p className="mt-[3px] text-[10px] text-[#64748B]">
-                      Laporan &quot;Jalan Rusak&quot; telah masuk.
-                    </p>
-                  </div>
-
-                  <div className="pt-[12px]">
-                    <p className="text-[12px] font-semibold text-[#14294A]">
-                      Laporan diperbarui
-                    </p>
-
-                    <p className="mt-[3px] text-[10px] text-[#64748B]">
-                      Status &quot;Sampah Menumpuk&quot; sedang diproses.
-                    </p>
-                  </div>
-
-                </div>
-              )}
-
-            </div>
-
-            {/* PROFILE */}
-            <button
-              type="button"
-              onClick={onProfile}
-              className="
-                flex h-[42px] w-[42px]
-                items-center justify-center
-                rounded-full
-                border
-                border-[#14294A]
-                bg-white
-                text-[#14294A]
-              "
-            >
-              <UserIcon />
-            </button>
-
-          </div>
-
-        </header>
-
-        {/* CONTENT */}
-        <div className="px-[34px] pb-[35px] pt-[36px]">
+  return (<div className="px-[34px] pb-[35px] pt-[36px]">
 
           {/* TITLE */}
           <div className="mb-[24px]">
@@ -455,7 +44,7 @@ export default function DashboardPage({
 
               <div>
                 <p className="text-[22px] font-bold leading-none text-[#14294A]">
-                  14
+                  {stats.total}
                 </p>
 
                 <p className="mt-[4px] text-[13px] text-[#14294A]">
@@ -471,7 +60,7 @@ export default function DashboardPage({
 
               <div>
                 <p className="text-[22px] font-bold leading-none text-[#14294A]">
-                  5
+                  {stats.diproses}
                 </p>
 
                 <p className="mt-[4px] text-[13px] text-[#14294A]">
@@ -487,7 +76,7 @@ export default function DashboardPage({
 
               <div>
                 <p className="text-[22px] font-bold leading-none text-[#14294A]">
-                  7
+                  {stats.selesai}
                 </p>
 
                 <p className="mt-[4px] text-[13px] text-[#14294A]">
@@ -503,7 +92,7 @@ export default function DashboardPage({
 
               <div>
                 <p className="text-[22px] font-bold leading-none text-[#14294A]">
-                  2
+                  {stats.ditolak}
                 </p>
 
                 <p className="mt-[4px] text-[13px] text-[#14294A]">
@@ -1051,9 +640,5 @@ export default function DashboardPage({
           </div>
 
         </div>
-
-      </section>
-
-    </main>
   );
 }

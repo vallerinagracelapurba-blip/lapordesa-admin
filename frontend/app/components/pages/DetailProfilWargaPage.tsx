@@ -101,22 +101,6 @@ function SettingsIcon() {
   );
 }
 
-function LogoutIcon() {
-  return (
-    <svg
-      width="22"
-      height="22"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-    >
-      <path d="M10 4H5v16h5" />
-      <path d="M14 8l4 4-4 4" />
-      <path d="M18 12H9" />
-    </svg>
-  );
-}
 
 function ArrowLeftIcon() {
   return (
@@ -275,16 +259,6 @@ export default function DetailProfilWargaPage({
             <span>Pengaturan</span>
           </button>
         </nav>
-
-        <div className="absolute bottom-[25px] left-[25px] right-[25px]">
-          <button
-            type="button"
-            className="flex h-[52px] w-full items-center gap-4 rounded-[13px] px-4 text-left text-[16px] font-semibold hover:bg-[#EAF5F2]"
-          >
-            <LogoutIcon />
-            <span>Logout</span>
-          </button>
-        </div>
       </aside>
 
       {/* MAIN */}
