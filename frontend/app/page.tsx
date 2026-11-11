@@ -1,5 +1,2 @@
-import AppRouter from "@/app/components/AppRouter";
-
-export default function HomePage() {
-  return <AppRouter />;
-}
+import { redirect } from "next/navigation";
+export default function HomePage() { redirect("/dashboard"); }
