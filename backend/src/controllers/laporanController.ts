@@ -2,7 +2,8 @@
 import type { Request, Response } from "express";
 
 import {
-  getAllLaporan,
+  getLaporanPaginated,
+  getTotalLaporan,
   getLaporanById,
   getRiwayatStatusLaporan,
   updateLaporanStatus,
@@ -18,15 +19,67 @@ const STATUS_VALID = [
 ] as const;
 
 export async function getLaporan(
-  _req: Request,
+  req: Request,
   res: Response
 ): Promise<void> {
   try {
-    const laporan = await getAllLaporan();
+    const requestedPage = Number(req.query.page) || 1;
+    const requestedLimit = Number(req.query.limit) || 10;
+
+    const page =
+      Number.isInteger(requestedPage) && requestedPage > 0
+        ? requestedPage
+        : 1;
+
+    const limit = [10, 15, 20].includes(requestedLimit)
+      ? requestedLimit
+      : 10;
+
+    const search =
+      typeof req.query.search === "string"
+        ? req.query.search.trim()
+        : "";
+
+    const requestedStatus =
+      typeof req.query.status === "string"
+        ? req.query.status
+        : "";
+
+    const status = STATUS_VALID.includes(
+      requestedStatus as (typeof STATUS_VALID)[number]
+    )
+      ? requestedStatus
+      : "";
+
+    const sort =
+      req.query.sort === "Terlama"
+        ? "Terlama"
+        : "Terbaru";
+
+    const offset = (page - 1) * limit;
+
+    const [laporan, total] = await Promise.all([
+      getLaporanPaginated(
+        limit,
+        offset,
+        search,
+        status,
+        sort
+      ),
+      getTotalLaporan(search, status),
+    ]);
 
     res.status(200).json({
       success: true,
-      total: laporan.length,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+      filters: {
+        search,
+        status,
+        sort,
+      },
       data: laporan,
     });
   } catch (error) {
@@ -89,6 +142,7 @@ export async function updateStatusLaporan(
 ): Promise<void> {
   try {
     const id = Number(req.params.id);
+
     const { status, catatan } = req.body as {
       status?: string;
       catatan?: string;

@@ -1,69 +1,43 @@
+
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
 import { useLaporan } from "@/hooks/useLaporan";
-import { nilaiWaktu } from "@/lib/laporan";
 import { useAppNavigation } from "@/hooks/useAppNavigation";
 import { useDashboardHeader } from "@/components/layout/DashboardHeaderContext";
 import { ArrowLeftIcon } from "./DataLaporanIcons";
 
-const ITEMS_PER_PAGE = 10;
-
 export default function DataLaporanPage() {
   const { onBackToDashboard, onOpenDetail } = useAppNavigation();
-  const { laporanData, loading, errorApi, fetchLaporan } = useLaporan();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("Semua Status");
   const [tanggalFilter, setTanggalFilter] = useState("Terbaru");
-  const [currentPage, setCurrentPage] = useState(1);
 
-  const handleHeaderSearchChange = useCallback((value: string) => {
-    setSearchQuery(value);
-    setCurrentPage(1);
-  }, []);
+  const {
+    laporanData,
+    loading,
+    errorApi,
+    fetchLaporan,
+    currentPage,
+    setCurrentPage,
+    itemsPerPage,
+    total,
+    totalPages,
+  } = useLaporan(searchQuery, statusFilter, tanggalFilter);
 
-  const filteredData = useMemo(() => {
-    return [...laporanData]
-      .filter((laporan) => {
-        const query = searchQuery.toLowerCase().trim();
-
-        const cocokSearch =
-          query === "" ||
-          laporan.judul.toLowerCase().includes(query) ||
-          laporan.kategori.toLowerCase().includes(query) ||
-          laporan.lokasi.toLowerCase().includes(query) ||
-          laporan.pelapor.toLowerCase().includes(query) ||
-          laporan.hp.toLowerCase().includes(query);
-
-        const cocokStatus =
-          statusFilter === "Semua Status" ||
-          laporan.status.toLowerCase() === statusFilter.toLowerCase();
-
-        return cocokSearch && cocokStatus;
-      })
-      .sort((a, b) => {
-        const selisih = nilaiWaktu(a.tanggal) - nilaiWaktu(b.tanggal);
-        return tanggalFilter === "Terbaru" ? -selisih : selisih;
-      });
-  }, [laporanData, searchQuery, statusFilter, tanggalFilter]);
-
-  const totalPages = Math.ceil(filteredData.length / ITEMS_PER_PAGE);
-
-  const paginatedData = useMemo(() => {
-    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-    return filteredData.slice(startIndex, startIndex + ITEMS_PER_PAGE);
-  }, [filteredData, currentPage]);
+  const handleHeaderSearchChange = useCallback(
+    (value: string) => {
+      setSearchQuery(value);
+      setCurrentPage(1);
+    },
+    [setCurrentPage]
+  );
 
   const startData =
-    filteredData.length === 0
-      ? 0
-      : (currentPage - 1) * ITEMS_PER_PAGE + 1;
+    total === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1;
 
-  const endData = Math.min(
-    currentPage * ITEMS_PER_PAGE,
-    filteredData.length
-  );
+  const endData = Math.min(currentPage * itemsPerPage, total);
 
   const notificationContent = useMemo(
     () => (
@@ -73,7 +47,7 @@ export default function DataLaporanPage() {
             Laporan
           </p>
           <p className="mt-[3px] text-[10px] text-[#64748B]">
-            Total laporan dari API: {laporanData.length}.
+            Total laporan dari API: {total}.
           </p>
         </div>
 
@@ -91,7 +65,7 @@ export default function DataLaporanPage() {
         </div>
       </>
     ),
-    [laporanData.length, loading, errorApi]
+    [total, loading, errorApi]
   );
 
   useDashboardHeader({
@@ -125,27 +99,28 @@ export default function DataLaporanPage() {
         </div>
 
         {/* FILTER */}
-        <div className="mb-[12px] flex items-center justify-between">
+        <div className="mb-[12px] flex flex-wrap items-center justify-between gap-3">
           <p className="text-[14px] text-[#64748B]">
             {loading
               ? "Memuat data laporan..."
-              : `Menampilkan ${startData}–${endData} dari ${filteredData.length} laporan`}
+              : `Menampilkan ${startData}–${endData} dari ${total} laporan`}
           </p>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <select
               value={statusFilter}
               onChange={(e) => {
                 setStatusFilter(e.target.value);
                 setCurrentPage(1);
               }}
+              aria-label="Filter status laporan"
               className="h-[38px] rounded-[7px] border border-[#C9D0D8] bg-white px-3 text-[12px] text-[#475569] outline-none focus:border-[#00B686]"
             >
-              <option>Semua Status</option>
-              <option>Menunggu</option>
-              <option>Diproses</option>
-              <option>Selesai</option>
-              <option>Ditolak</option>
+              <option value="Semua Status">Semua Status</option>
+              <option value="Menunggu">Menunggu</option>
+              <option value="Diproses">Diproses</option>
+              <option value="Selesai">Selesai</option>
+              <option value="Ditolak">Ditolak</option>
             </select>
 
             <select
@@ -154,10 +129,11 @@ export default function DataLaporanPage() {
                 setTanggalFilter(e.target.value);
                 setCurrentPage(1);
               }}
+              aria-label="Urutkan tanggal laporan"
               className="h-[38px] rounded-[7px] border border-[#C9D0D8] bg-white px-3 text-[12px] text-[#475569] outline-none focus:border-[#00B686]"
             >
-              <option>Terbaru</option>
-              <option>Terlama</option>
+              <option value="Terbaru">Terbaru</option>
+              <option value="Terlama">Terlama</option>
             </select>
           </div>
         </div>
@@ -177,78 +153,44 @@ export default function DataLaporanPage() {
         )}
 
         {/* TABLE */}
-        <div className="overflow-hidden rounded-[10px] border border-[#C9D0D8] bg-white">
-          <table className="w-full border-collapse">
+        <div className="overflow-x-auto rounded-[10px] border border-[#C9D0D8] bg-white">
+          <table className="w-full min-w-[850px] border-collapse">
             <thead>
               <tr className="border-b border-[#D9DEE5] bg-[#F8FAFC]">
-                <th className="px-[14px] py-[14px] text-left text-[11px] font-bold text-[#64748B]">
-                  LAPORAN
-                </th>
-                <th className="px-[14px] py-[14px] text-left text-[11px] font-bold text-[#64748B]">
-                  KATEGORI
-                </th>
-                <th className="px-[14px] py-[14px] text-left text-[11px] font-bold text-[#64748B]">
-                  LOKASI
-                </th>
-                <th className="px-[14px] py-[14px] text-left text-[11px] font-bold text-[#64748B]">
-                  PELAPOR
-                </th>
-                <th className="px-[14px] py-[14px] text-left text-[11px] font-bold text-[#64748B]">
-                  TANGGAL
-                </th>
-                <th className="px-[14px] py-[14px] text-left text-[11px] font-bold text-[#64748B]">
-                  STATUS
-                </th>
+                <th className="px-[14px] py-[14px] text-left text-[11px] font-bold text-[#64748B]">LAPORAN</th>
+                <th className="px-[14px] py-[14px] text-left text-[11px] font-bold text-[#64748B]">KATEGORI</th>
+                <th className="px-[14px] py-[14px] text-left text-[11px] font-bold text-[#64748B]">LOKASI</th>
+                <th className="px-[14px] py-[14px] text-left text-[11px] font-bold text-[#64748B]">PELAPOR</th>
+                <th className="px-[14px] py-[14px] text-left text-[11px] font-bold text-[#64748B]">TANGGAL</th>
+                <th className="px-[14px] py-[14px] text-left text-[11px] font-bold text-[#64748B]">STATUS</th>
               </tr>
             </thead>
 
             <tbody>
               {loading ? (
                 <tr>
-                  <td
-                    colSpan={6}
-                    className="px-4 py-12 text-center text-[12px] text-[#94A3B8]"
-                  >
+                  <td colSpan={6} className="px-4 py-12 text-center text-[12px] text-[#94A3B8]">
                     Memuat data laporan...
                   </td>
                 </tr>
-              ) : paginatedData.length > 0 ? (
-                paginatedData.map((laporan, index) => (
+              ) : laporanData.length > 0 ? (
+                laporanData.map((laporan, index) => (
                   <tr
                     key={`${laporan.id}-${index}`}
                     onClick={() => onOpenDetail(laporan.id)}
                     className="cursor-pointer border-b border-[#D9DEE5] last:border-b-0 hover:bg-[#FAFCFB]"
                   >
                     <td className="px-[14px] py-[14px]">
-                      <p className="text-[13px] font-bold text-[#14294A]">
-                        {laporan.judul}
-                      </p>
-                      <p className="mt-1 text-[9px] text-[#64748B]">
-                        {laporan.jam}
-                      </p>
+                      <p className="text-[13px] font-bold text-[#14294A]">{laporan.judul}</p>
+                      <p className="mt-1 text-[9px] text-[#64748B]">{laporan.jam}</p>
                     </td>
-
-                    <td className="px-[14px] py-[14px] text-[11px] text-[#475569]">
-                      {laporan.kategori}
-                    </td>
-
-                    <td className="px-[14px] py-[14px] text-[11px] text-[#475569]">
-                      {laporan.lokasi}
-                    </td>
-
+                    <td className="px-[14px] py-[14px] text-[11px] text-[#475569]">{laporan.kategori}</td>
+                    <td className="px-[14px] py-[14px] text-[11px] text-[#475569]">{laporan.lokasi}</td>
                     <td className="px-[14px] py-[14px]">
-                      <p className="text-[11px] font-semibold text-[#14294A]">
-                        {laporan.pelapor}
-                      </p>
-                      <p className="mt-1 text-[9px] text-[#64748B]">
-                        {laporan.hp}
-                      </p>
+                      <p className="text-[11px] font-semibold text-[#14294A]">{laporan.pelapor}</p>
+                      <p className="mt-1 text-[9px] text-[#64748B]">{laporan.hp}</p>
                     </td>
-
-                    <td className="px-[14px] py-[14px] text-[11px] text-[#475569]">
-                      {laporan.tanggal || "-"}
-                    </td>
-
+                    <td className="px-[14px] py-[14px] text-[11px] text-[#475569]">{laporan.tanggal || "-"}</td>
                     <td className="px-[14px] py-[14px]">
                       <span className="rounded-full bg-[#B9E4D8] px-[16px] py-[5px] text-[9px] font-medium text-[#087F60]">
                         {laporan.status}
@@ -258,10 +200,7 @@ export default function DataLaporanPage() {
                 ))
               ) : (
                 <tr>
-                  <td
-                    colSpan={6}
-                    className="px-4 py-12 text-center text-[12px] text-[#94A3B8]"
-                  >
+                  <td colSpan={6} className="px-4 py-12 text-center text-[12px] text-[#94A3B8]">
                     Tidak ada laporan yang sesuai.
                   </td>
                 </tr>
@@ -271,8 +210,8 @@ export default function DataLaporanPage() {
         </div>
 
         {/* PAGINATION */}
-        {!loading && filteredData.length > 0 && (
-          <div className="mt-[16px] flex items-center justify-between gap-4">
+        {!loading && total > 0 && (
+          <div className="mt-[16px] flex flex-wrap items-center justify-between gap-4">
             <p className="text-[12px] text-[#64748B]">
               Halaman {currentPage} dari {totalPages}
             </p>
@@ -280,10 +219,8 @@ export default function DataLaporanPage() {
             <div className="flex items-center gap-1">
               <button
                 type="button"
-                disabled={currentPage === 1}
-                onClick={() =>
-                  setCurrentPage((page) => Math.max(1, page - 1))
-                }
+                disabled={currentPage <= 1}
+                onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
                 aria-label="Halaman sebelumnya"
                 className="flex h-[34px] w-[34px] items-center justify-center rounded-[6px] border border-[#D9DEE5] text-[#475569] hover:bg-[#F1F5F9] disabled:cursor-not-allowed disabled:opacity-40"
               >
@@ -302,7 +239,6 @@ export default function DataLaporanPage() {
                     {index > 0 && page - pages[index - 1] > 1 && (
                       <span className="px-1 text-[#94A3B8]">...</span>
                     )}
-
                     <button
                       type="button"
                       onClick={() => setCurrentPage(page)}
@@ -320,12 +256,8 @@ export default function DataLaporanPage() {
 
               <button
                 type="button"
-                disabled={currentPage === totalPages}
-                onClick={() =>
-                  setCurrentPage((page) =>
-                    Math.min(totalPages, page + 1)
-                  )
-                }
+                disabled={currentPage >= totalPages}
+                onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
                 aria-label="Halaman berikutnya"
                 className="flex h-[34px] w-[34px] items-center justify-center rounded-[6px] border border-[#D9DEE5] text-[#475569] hover:bg-[#F1F5F9] disabled:cursor-not-allowed disabled:opacity-40"
               >

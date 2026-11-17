@@ -52,10 +52,133 @@ export async function getAllLaporan(): Promise<Laporan[]> {
     LEFT JOIN warga w ON l.warga_id = w.id
     LEFT JOIN users u ON w.user_id = u.id
     LEFT JOIN kategori_laporan k ON l.kategori_id = k.id
-    ORDER BY l.created_at DESC`
+    ORDER BY l.created_at DESC, l.id DESC`
   );
 
   return rows;
+}
+
+// Mengambil laporan dengan pagination, pencarian, filter status, dan pengurutan.
+export async function getLaporanPaginated(
+  limit: number,
+  offset: number,
+  search = "",
+  status = "",
+  sort = "Terbaru"
+): Promise<Laporan[]> {
+  const conditions: string[] = [];
+  const params: (string | number)[] = [];
+
+  if (search.trim()) {
+    conditions.push(`(
+      l.judul LIKE ?
+      OR l.alamat_lokasi LIKE ?
+      OR COALESCE(u.nama, w.nama) LIKE ?
+      OR w.no_telepon LIKE ?
+      OR k.nama_kategori LIKE ?
+    )`);
+
+    const keyword = `%${search.trim()}%`;
+
+    params.push(
+      keyword,
+      keyword,
+      keyword,
+      keyword,
+      keyword
+    );
+  }
+
+  if (status) {
+    conditions.push("l.status = ?");
+    params.push(status);
+  }
+
+  const whereClause = conditions.length
+    ? `WHERE ${conditions.join(" AND ")}`
+    : "";
+
+  const orderClause =
+    sort === "Terlama"
+      ? "ORDER BY l.created_at ASC, l.id ASC"
+      : "ORDER BY l.created_at DESC, l.id DESC";
+
+  const [rows] = await db.query<Laporan[]>(
+    `SELECT
+      l.id,
+      l.warga_id,
+      l.kategori_id,
+      l.judul,
+      l.deskripsi,
+      l.alamat_lokasi,
+      l.foto,
+      l.status,
+      l.created_at,
+      l.updated_at,
+      COALESCE(u.nama, w.nama) AS nama_pengirim,
+      w.no_telepon AS no_telepon,
+      k.nama_kategori AS nama_kategori
+    FROM laporan l
+    LEFT JOIN warga w ON l.warga_id = w.id
+    LEFT JOIN users u ON w.user_id = u.id
+    LEFT JOIN kategori_laporan k ON l.kategori_id = k.id
+    ${whereClause}
+    ${orderClause}
+    LIMIT ? OFFSET ?`,
+    [...params, limit, offset]
+  );
+
+  return rows;
+}
+
+// Menghitung total laporan berdasarkan pencarian dan filter status.
+export async function getTotalLaporan(
+  search = "",
+  status = ""
+): Promise<number> {
+  const conditions: string[] = [];
+  const params: string[] = [];
+
+  if (search.trim()) {
+    conditions.push(`(
+      l.judul LIKE ?
+      OR l.alamat_lokasi LIKE ?
+      OR COALESCE(u.nama, w.nama) LIKE ?
+      OR w.no_telepon LIKE ?
+      OR k.nama_kategori LIKE ?
+    )`);
+
+    const keyword = `%${search.trim()}%`;
+
+    params.push(
+      keyword,
+      keyword,
+      keyword,
+      keyword,
+      keyword
+    );
+  }
+
+  if (status) {
+    conditions.push("l.status = ?");
+    params.push(status);
+  }
+
+  const whereClause = conditions.length
+    ? `WHERE ${conditions.join(" AND ")}`
+    : "";
+
+  const [rows] = await db.query<RowDataPacket[]>(
+    `SELECT COUNT(*) AS total
+     FROM laporan l
+     LEFT JOIN warga w ON l.warga_id = w.id
+     LEFT JOIN users u ON w.user_id = u.id
+     LEFT JOIN kategori_laporan k ON l.kategori_id = k.id
+     ${whereClause}`,
+    params
+  );
+
+  return Number(rows[0].total);
 }
 
 export async function getLaporanById(
