@@ -1,10 +1,14 @@
 
 import type { Request, Response } from "express";
+
 import {
   getAllLaporan,
   getLaporanById,
+  getRiwayatStatusLaporan,
   updateLaporanStatus,
 } from "../models/laporanModel.js";
+
+import { createNotificationForAdmins } from "../models/notificationsModel.js";
 
 const STATUS_VALID = [
   "Menunggu",
@@ -19,11 +23,6 @@ export async function getLaporan(
 ): Promise<void> {
   try {
     const laporan = await getAllLaporan();
-
-    console.log(
-      "HASIL QUERY LAPORAN:",
-      JSON.stringify(laporan)
-    );
 
     res.status(200).json({
       success: true,
@@ -65,9 +64,14 @@ export async function getLaporanDetail(
       return;
     }
 
+    const riwayat = await getRiwayatStatusLaporan(id);
+
     res.status(200).json({
       success: true,
-      data: laporan,
+      data: {
+        ...laporan,
+        riwayat_status: riwayat,
+      },
     });
   } catch (error) {
     console.error("Gagal mengambil detail laporan:", error);
@@ -85,7 +89,10 @@ export async function updateStatusLaporan(
 ): Promise<void> {
   try {
     const id = Number(req.params.id);
-    const { status } = req.body as { status?: string };
+    const { status, catatan } = req.body as {
+      status?: string;
+      catatan?: string;
+    };
 
     if (!Number.isInteger(id) || id <= 0) {
       res.status(400).json({
@@ -106,29 +113,61 @@ export async function updateStatusLaporan(
       return;
     }
 
-    const berhasil = await updateLaporanStatus(
+    if (
+      catatan !== undefined &&
+      typeof catatan !== "string"
+    ) {
+      res.status(400).json({
+        success: false,
+        message: "Catatan harus berupa teks.",
+      });
+      return;
+    }
+
+    const hasilUpdate = await updateLaporanStatus(
       id,
-      status as (typeof STATUS_VALID)[number]
+      status as (typeof STATUS_VALID)[number],
+      catatan?.trim() || null
     );
 
-    if (!berhasil) {
-      const laporan = await getLaporanById(id);
+    if (!hasilUpdate) {
+      res.status(404).json({
+        success: false,
+        message: "Laporan tidak ditemukan.",
+      });
+      return;
+    }
 
-      if (!laporan) {
-        res.status(404).json({
-          success: false,
-          message: "Laporan tidak ditemukan.",
-        });
-        return;
+    if (hasilUpdate.updated) {
+      try {
+        const laporanSebelumnya = await getLaporanById(id);
+
+        await createNotificationForAdmins(
+          id,
+          "status_laporan",
+          "Status laporan diperbarui",
+          `Status laporan "${laporanSebelumnya?.judul || `#${id}`}" berubah dari ${hasilUpdate.previousStatus} menjadi ${hasilUpdate.currentStatus}.`
+        );
+      } catch (notificationError) {
+        console.error(
+          "Gagal membuat notifikasi:",
+          notificationError
+        );
       }
     }
 
     const laporanTerbaru = await getLaporanById(id);
+    const riwayat = await getRiwayatStatusLaporan(id);
 
     res.status(200).json({
       success: true,
-      message: "Status laporan berhasil diperbarui.",
-      data: laporanTerbaru,
+      message: hasilUpdate.updated
+        ? "Status laporan berhasil diperbarui."
+        : "Status laporan tidak berubah.",
+      data: {
+        ...laporanTerbaru,
+        riwayat_status: riwayat,
+      },
     });
   } catch (error) {
     console.error("Gagal memperbarui status laporan:", error);

@@ -38,3 +38,22 @@ export async function getUserById(
 
   return rows[0] ?? null;
 }
+
+// Update password khusus akun admin
+export async function updateUserPassword(
+  id: number,
+  passwordHash: string
+): Promise<void> {
+  const [result] = await db.execute(
+    `UPDATE users
+     SET password = ?
+     WHERE id = ? AND role = 'admin'`,
+    [passwordHash, id]
+  );
+
+  const affectedRows = (result as { affectedRows: number }).affectedRows;
+
+  if (affectedRows !== 1) {
+    throw new Error("Password gagal diperbarui di database.");
+  }
+}

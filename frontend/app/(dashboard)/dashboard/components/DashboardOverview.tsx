@@ -372,8 +372,8 @@ export default function DashboardOverview({
                 </div>
               ))
             ) : (
-              <div className="flex h-[120px] items-center justify-center text-[12px] text-[#94A3B8]">
-                Belum ada laporan.
+              <div className="flex h-[120px] items-center justify-center px-4 text-center text-[12px] text-[#94A3B8]">
+                Tidak ada laporan yang cocok atau belum ada laporan.
               </div>
             )}
           </div>

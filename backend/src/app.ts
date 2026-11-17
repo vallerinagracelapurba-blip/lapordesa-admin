@@ -9,16 +9,17 @@ import authRoutes from "./routes/authRoutes.js";
 import dashboardRoutes from "./routes/dashboardRoutes.js";
 import laporanRoutes from "./routes/laporanRoutes.js";
 import wargaRoutes from "./routes/wargaRoutes.js";
+import profileRoutes from "./routes/profileRoutes.js";
+import notificationsRoutes from "./routes/notificationsRoutes.js";
+import searchRoutes from "./routes/searchRoutes.js";
 
 dotenv.config();
 
 const app = express();
 
-// Middleware
 app.use(cors());
 app.use(express.json());
 
-// Tes backend
 app.get("/", (_req, res) => {
   res.status(200).json({
     success: true,
@@ -26,7 +27,6 @@ app.get("/", (_req, res) => {
   });
 });
 
-// Tes koneksi database
 app.get("/api/test-db", async (_req, res) => {
   try {
     const [rows] = await db.query("SELECT 1 AS test");
@@ -46,13 +46,14 @@ app.get("/api/test-db", async (_req, res) => {
   }
 });
 
-// API routes
 app.use("/api/auth", authRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/laporan", laporanRoutes);
 app.use("/api/warga", wargaRoutes);
+app.use("/api/profile", profileRoutes);
+app.use("/api/notifications", notificationsRoutes);
+app.use("/api/search", searchRoutes);
 
-// Route tidak ditemukan
 app.use((_req, res) => {
   res.status(404).json({
     success: false,

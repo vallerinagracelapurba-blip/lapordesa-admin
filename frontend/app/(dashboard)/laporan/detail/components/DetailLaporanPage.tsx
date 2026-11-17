@@ -2,16 +2,32 @@
 "use client";
 
 import { getSelectedLaporan } from "@/lib/selectedLaporan";
-import type { LaporanDetail as Laporan, StatusLaporan } from "@/types/domain";
+import type {
+  LaporanDetail as Laporan,
+  StatusLaporan,
+} from "@/types/domain";
 import { apiFetch, assetUrl } from "@/services/api";
 import { useAppNavigation } from "@/hooks/useAppNavigation";
 import { useDashboardHeader } from "@/components/layout/DashboardHeaderContext";
 import { useEffect, useMemo, useState } from "react";
 
+type RiwayatStatusItem = {
+  id: number;
+  laporan_id: number;
+  status: StatusLaporan;
+  catatan: string | null;
+  created_at: string;
+};
+
+type DetailLaporanResponse = Laporan & {
+  riwayat_status?: RiwayatStatusItem[];
+};
+
 export default function DetailLaporanPage() {
   const { onBackToLaporan } = useAppNavigation();
 
   const [laporan, setLaporan] = useState<Laporan | null>(null);
+  const [riwayatStatus, setRiwayatStatus] = useState<RiwayatStatusItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [status, setStatus] = useState<StatusLaporan>("Menunggu");
@@ -52,8 +68,15 @@ export default function DetailLaporanPage() {
           throw new Error("Data laporan tidak ditemukan.");
         }
 
-        setLaporan(result.data);
-        setStatus(result.data.status || "Menunggu");
+        const data = result.data as DetailLaporanResponse;
+
+        setLaporan(data);
+        setStatus(data.status || "Menunggu");
+        setRiwayatStatus(
+          Array.isArray(data.riwayat_status)
+            ? data.riwayat_status
+            : []
+        );
       } catch (err) {
         if (err instanceof Error && err.name !== "AbortError") {
           setError(err.message || "Terjadi kesalahan saat mengambil data.");
@@ -70,7 +93,7 @@ export default function DetailLaporanPage() {
     return () => controller.abort();
   }, []);
 
-  const formatTanggal = (tanggal?: string) => {
+  const formatTanggal = (tanggal?: string | Date) => {
     if (!tanggal) return "-";
 
     const date = new Date(tanggal);
@@ -83,7 +106,7 @@ export default function DetailLaporanPage() {
     });
   };
 
-  const formatTanggalPanjang = (tanggal?: string) => {
+  const formatTanggalPanjang = (tanggal?: string | Date) => {
     if (!tanggal) return "";
 
     const date = new Date(tanggal);
@@ -120,10 +143,18 @@ export default function DetailLaporanPage() {
         throw new Error(result.message || "Gagal menyimpan status laporan.");
       }
 
+      const data = result.data as DetailLaporanResponse | undefined;
+
       setStatus(newStatus);
 
-      if (result.data) {
-        setLaporan(result.data);
+      if (data) {
+        setLaporan(data);
+
+        setRiwayatStatus(
+          Array.isArray(data.riwayat_status)
+            ? data.riwayat_status
+            : []
+        );
       }
 
       setStatusMessage("Status berhasil disimpan ke database.");
@@ -178,7 +209,9 @@ export default function DetailLaporanPage() {
   if (loading) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-[#F8FAFC] font-[var(--font-poppins)] text-[#14294A]">
-        <p className="text-sm font-semibold">Memuat detail laporan...</p>
+        <p className="text-sm font-semibold">
+          Memuat detail laporan...
+        </p>
       </main>
     );
   }
@@ -214,10 +247,12 @@ export default function DetailLaporanPage() {
             <ArrowLeftIcon />
           </button>
 
-          <h1 className="text-[25px] font-bold">Detail Laporan</h1>
+          <h1 className="text-[25px] font-bold">
+            Detail Laporan
+          </h1>
         </div>
 
-        <div className="grid grid-cols-[minmax(0,1fr)_340px] gap-[18px]">
+        <div className="grid grid-cols-1 gap-[18px] xl:grid-cols-[minmax(0,1fr)_340px]">
           <div className="space-y-3">
             <section className="rounded-[10px] border border-[#C9D0D8] bg-white p-[22px]">
               <div className="flex items-start gap-[13px]">
@@ -226,7 +261,9 @@ export default function DetailLaporanPage() {
                 </div>
 
                 <div className="min-w-0 flex-1">
-                  <h2 className="text-xl font-bold">{laporan.judul}</h2>
+                  <h2 className="text-xl font-bold">
+                    {laporan.judul}
+                  </h2>
 
                   <p className="mt-1 text-xs font-medium text-[#00A97B]">
                     {laporan.nama_kategori || "Tidak ada kategori"}
@@ -234,9 +271,11 @@ export default function DetailLaporanPage() {
                 </div>
               </div>
 
-              <div className="mt-[18px] grid grid-cols-3 gap-5 border-t border-[#E2E8F0] pt-[15px]">
+              <div className="mt-[18px] grid grid-cols-1 gap-5 border-t border-[#E2E8F0] pt-[15px] sm:grid-cols-3">
                 <div>
-                  <p className="text-[11px] text-[#64748B]">Pelapor</p>
+                  <p className="text-[11px] text-[#64748B]">
+                    Pelapor
+                  </p>
 
                   <div className="mt-1 flex items-center gap-1">
                     <UserSmallIcon />
@@ -253,14 +292,18 @@ export default function DetailLaporanPage() {
                 </div>
 
                 <div>
-                  <p className="text-[11px] text-[#64748B]">Lokasi</p>
+                  <p className="text-[11px] text-[#64748B]">
+                    Lokasi
+                  </p>
                   <p className="mt-1 break-words text-xs font-semibold">
                     {laporan.alamat_lokasi || "-"}
                   </p>
                 </div>
 
                 <div>
-                  <p className="text-[11px] text-[#64748B]">Tanggal</p>
+                  <p className="text-[11px] text-[#64748B]">
+                    Tanggal
+                  </p>
                   <p className="mt-1 text-xs font-semibold">
                     {formatTanggal(laporan.created_at)}
                   </p>
@@ -279,7 +322,9 @@ export default function DetailLaporanPage() {
             </section>
 
             <section className="rounded-[10px] border border-[#C9D0D8] bg-white p-[18px]">
-              <h3 className="mb-3 text-[13px] font-bold">Bukti Foto</h3>
+              <h3 className="mb-3 text-[13px] font-bold">
+                Bukti Foto
+              </h3>
 
               <div className="flex min-h-[150px] flex-wrap gap-2">
                 <div className="flex h-[150px] w-[220px] items-center justify-center overflow-hidden rounded-[9px] bg-[#E2E8F0]">
@@ -307,13 +352,17 @@ export default function DetailLaporanPage() {
 
           <div>
             <section className="rounded-[10px] border border-[#C9D0D8] bg-white p-[18px]">
-              <h3 className="text-sm font-bold">Status Laporan</h3>
+              <h3 className="text-sm font-bold">
+                Status Laporan
+              </h3>
 
               <select
                 value={status}
                 disabled={savingStatus}
                 onChange={(e) =>
-                  void handleStatusChange(e.target.value as StatusLaporan)
+                  void handleStatusChange(
+                    e.target.value as StatusLaporan
+                  )
                 }
                 className="mt-[14px] h-[40px] w-full rounded-lg border border-[#8ED2BD] bg-[#B9E4D8] px-[14px] text-xs font-semibold text-[#087F60] outline-none focus:border-[#00A97B] disabled:cursor-wait disabled:opacity-60"
               >
@@ -346,38 +395,28 @@ export default function DetailLaporanPage() {
                   title="Menunggu"
                   date={formatTanggalPanjang(laporan.created_at)}
                   active
+                  last={riwayatStatus.length === 0 && laporan.status === "Menunggu"}
                 />
 
-                <TimelineItem
-                  title="Diproses"
-                  date={
-                    status === "Diproses"
-                      ? formatTanggalPanjang(laporan.updated_at)
-                      : ""
-                  }
-                  active={status === "Diproses" || status === "Selesai"}
-                />
-
-                <TimelineItem
-                  title="Selesai"
-                  date={
-                    status === "Selesai"
-                      ? formatTanggalPanjang(laporan.updated_at)
-                      : ""
-                  }
-                  active={status === "Selesai"}
-                />
-
-                <TimelineItem
-                  title="Ditolak"
-                  date={
-                    status === "Ditolak"
-                      ? formatTanggalPanjang(laporan.updated_at)
-                      : ""
-                  }
-                  active={status === "Ditolak"}
-                  last
-                />
+                {riwayatStatus.length > 0 ? (
+                  riwayatStatus.map((item, index) => (
+                    <TimelineItem
+                      key={item.id}
+                      title={item.status}
+                      date={formatTanggalPanjang(item.created_at)}
+                      catatan={item.catatan}
+                      active
+                      last={index === riwayatStatus.length - 1}
+                    />
+                  ))
+                ) : laporan.status !== "Menunggu" ? (
+                  <TimelineItem
+                    title={`${laporan.status} (riwayat sebelumnya belum tersedia)`}
+                    date={formatTanggalPanjang(laporan.updated_at)}
+                    active
+                    last
+                  />
+                ) : null}
               </div>
 
               <div className="mt-[25px]">
@@ -406,11 +445,13 @@ export default function DetailLaporanPage() {
 function TimelineItem({
   title,
   date,
+  catatan,
   active = false,
   last = false,
 }: {
   title: string;
   date: string;
+  catatan?: string | null;
   active?: boolean;
   last?: boolean;
 }) {
@@ -422,7 +463,7 @@ function TimelineItem({
         }`}
       />
 
-      <div className="-mt-[2px]">
+      <div className="-mt-[2px] min-w-0">
         <p
           className={`text-[11px] font-semibold ${
             active ? "text-[#14294A]" : "text-[#94A3B8]"
@@ -432,7 +473,15 @@ function TimelineItem({
         </p>
 
         {date && (
-          <p className="mt-[2px] text-[8px] text-[#94A3B8]">{date}</p>
+          <p className="mt-[2px] text-[8px] text-[#94A3B8]">
+            {date}
+          </p>
+        )}
+
+        {catatan && (
+          <p className="mt-1 whitespace-pre-line break-words text-[10px] text-[#64748B]">
+            {catatan}
+          </p>
         )}
       </div>
     </div>

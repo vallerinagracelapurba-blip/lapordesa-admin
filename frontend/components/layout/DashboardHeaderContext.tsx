@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -32,12 +33,9 @@ export function useDashboardHeader(config: DashboardHeaderConfig) {
     );
   }
 
+  // Update konfigurasi header saat nilainya berubah.
   useEffect(() => {
     context.setHeaderConfig(config);
-
-    return () => {
-      context.setHeaderConfig(null);
-    };
   }, [
     context.setHeaderConfig,
     config.searchValue,
@@ -45,4 +43,11 @@ export function useDashboardHeader(config: DashboardHeaderConfig) {
     config.searchPlaceholder,
     config.notificationContent,
   ]);
+
+  // Bersihkan konfigurasi hanya saat komponen halaman dilepas.
+  useEffect(() => {
+    return () => {
+      context.setHeaderConfig(null);
+    };
+  }, [context.setHeaderConfig]);
 }

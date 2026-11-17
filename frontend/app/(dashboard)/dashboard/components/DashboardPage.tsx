@@ -4,7 +4,8 @@
 import type { DashboardStats } from "@/types/domain";
 import { apiFetch } from "@/services/api";
 import { useAppNavigation } from "@/hooks/useAppNavigation";
-import { useEffect, useState } from "react";
+import { useDashboardHeader } from "@/components/layout/DashboardHeaderContext";
+import { useEffect, useMemo, useState } from "react";
 import DashboardOverview from "./DashboardOverview";
 
 export type DashboardRecentReport = {
@@ -44,6 +45,13 @@ export default function DashboardPage() {
 
   const [summaryDays, setSummaryDays] = useState(7);
   const [trendDays, setTrendDays] = useState(7);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  useDashboardHeader({
+    searchValue: searchQuery,
+    onSearchChange: setSearchQuery,
+    searchPlaceholder: "Cari judul, lokasi, status, atau kategori laporan...",
+  });
 
   useEffect(() => {
     async function fetchDashboard() {
@@ -78,11 +86,29 @@ export default function DashboardPage() {
     fetchDashboard();
   }, [summaryDays, trendDays]);
 
+  const filteredReports = useMemo(() => {
+    const keyword = searchQuery.trim().toLowerCase();
+
+    if (!keyword) return recentReports;
+
+    return recentReports.filter((report) =>
+      [
+        report.judul,
+        report.alamat_lokasi,
+        report.status,
+        report.nama_kategori ?? "",
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(keyword)
+    );
+  }, [recentReports, searchQuery]);
+
   return (
     <main className="min-h-screen">
       <DashboardOverview
         stats={stats}
-        recentReports={recentReports}
+        recentReports={filteredReports}
         categorySummary={categorySummary}
         trend={trend}
         summaryDays={summaryDays}
