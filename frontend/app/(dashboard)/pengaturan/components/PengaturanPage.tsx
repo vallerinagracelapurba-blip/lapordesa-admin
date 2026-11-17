@@ -1,8 +1,10 @@
-
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useAppNavigation } from "@/hooks/useAppNavigation";
 import { useDashboardHeader } from "@/components/layout/DashboardHeaderContext";
+
 import {
   LogoutIcon,
   UserLargeIcon,
@@ -11,11 +13,9 @@ import {
   PhoneIcon,
   MapPinIcon,
   BriefcaseIcon,
-  ImageIcon,
   LockIcon,
   ArrowLeftIcon,
 } from "./PengaturanIcons";
-import { useEffect, useMemo, useState } from "react";
 
 type ProfileData = {
   id: number;
@@ -27,26 +27,10 @@ type ProfileData = {
   alamat: string | null;
 };
 
-type ProfileForm = {
-  nama: string;
-  email: string;
-  jabatan: string;
-  no_telepon: string;
-  alamat: string;
-};
-
 type PasswordForm = {
   currentPassword: string;
   newPassword: string;
   confirmPassword: string;
-};
-
-const emptyForm: ProfileForm = {
-  nama: "",
-  email: "",
-  jabatan: "",
-  no_telepon: "",
-  alamat: "",
 };
 
 const emptyPasswordForm: PasswordForm = {
@@ -56,29 +40,23 @@ const emptyPasswordForm: PasswordForm = {
 };
 
 export default function PengaturanPage() {
+  const router = useRouter();
   const { onBackToDashboard, onLogout } = useAppNavigation();
 
-  const [isEditing, setIsEditing] = useState(false);
-  const [logoutOpen, setLogoutOpen] = useState(false);
+  const [profile, setProfile] = useState<ProfileData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   const [passwordOpen, setPasswordOpen] = useState(false);
   const [passwordSaving, setPasswordSaving] = useState(false);
   const [passwordError, setPasswordError] = useState("");
-  const [passwordSuccess, setPasswordSuccess] = useState("");
   const [showPasswords, setShowPasswords] = useState(false);
-
   const [passwordForm, setPasswordForm] =
     useState<PasswordForm>(emptyPasswordForm);
 
-  const [formData, setFormData] = useState<ProfileForm>(emptyForm);
-  const [savedData, setSavedData] = useState<ProfileForm>(emptyForm);
+  const [logoutOpen, setLogoutOpen] = useState(false);
 
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
-
-  // Mengambil profil admin dari database
+  // Mengambil informasi profil admin
   useEffect(() => {
     let active = true;
 
@@ -95,22 +73,13 @@ export default function PengaturanPage() {
         const result = await response.json();
 
         if (!response.ok || !result.success || !result.data) {
-          throw new Error(result.message || "Gagal mengambil data profil.");
+          throw new Error(
+            result.message || "Gagal mengambil informasi profil."
+          );
         }
 
-        const profile: ProfileData = result.data;
-
-        const data: ProfileForm = {
-          nama: profile.nama ?? "",
-          email: profile.email ?? "",
-          jabatan: profile.jabatan ?? "",
-          no_telepon: profile.no_telepon ?? "",
-          alamat: profile.alamat ?? "",
-        };
-
         if (active) {
-          setFormData(data);
-          setSavedData(data);
+          setProfile(result.data as ProfileData);
         }
       } catch (err) {
         if (active) {
@@ -134,78 +103,47 @@ export default function PengaturanPage() {
     };
   }, []);
 
-  const updateField = (field: keyof ProfileForm, value: string) => {
-    setFormData((previous) => ({
-      ...previous,
-      [field]: value,
-    }));
+  // Notifikasi pada dashboard header
+  const notificationContent = useMemo(
+    () => (
+      <div className="mt-3 space-y-2">
+        <div className="rounded-[8px] bg-[#F8FAFC] p-3">
+          <p className="text-[11px] font-semibold text-[#14294A]">
+            Laporan baru masuk
+          </p>
+          <p className="mt-1 text-[10px] text-[#64748B]">
+            Jalan Rusak dari Budi Santoso.
+          </p>
+        </div>
+
+        <div className="rounded-[8px] bg-[#F8FAFC] p-3">
+          <p className="text-[11px] font-semibold text-[#14294A]">
+            Laporan diperbarui
+          </p>
+          <p className="mt-1 text-[10px] text-[#64748B]">
+            Status laporan berubah menjadi Diproses.
+          </p>
+        </div>
+      </div>
+    ),
+    []
+  );
+
+  useDashboardHeader({
+    searchPlaceholder: "Cari laporan, warga, atau kata kunci...",
+    notificationContent,
+  });
+
+  const displayValue = (value?: string | null) => {
+    return value?.trim() || "Belum diisi";
   };
 
-  // Menyimpan perubahan profil
-  const handleSave = async () => {
-    if (!formData.nama.trim() || !formData.email.trim()) {
-      setError("Nama dan email wajib diisi.");
-      return;
-    }
-
-    try {
-      setSaving(true);
-      setError("");
-      setSuccess("");
-
-      const response = await fetch("/api/profile", {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          nama: formData.nama,
-          email: formData.email,
-          jabatan: formData.jabatan,
-          no_telepon: formData.no_telepon,
-          alamat: formData.alamat,
-        }),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok || !result.success || !result.data) {
-        throw new Error(result.message || "Gagal menyimpan perubahan profil.");
-      }
-
-      const profile: ProfileData = result.data;
-
-      const updatedData: ProfileForm = {
-        nama: profile.nama ?? "",
-        email: profile.email ?? "",
-        jabatan: profile.jabatan ?? "",
-        no_telepon: profile.no_telepon ?? "",
-        alamat: profile.alamat ?? "",
-      };
-
-      setFormData(updatedData);
-      setSavedData(updatedData);
-      setIsEditing(false);
-      setSuccess("Profil berhasil diperbarui.");
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Terjadi kesalahan saat menyimpan profil."
-      );
-    } finally {
-      setSaving(false);
-    }
+  // Membuka halaman khusus edit profil
+  const handleEditProfile = () => {
+    router.push("/pengaturan/profil");
   };
 
-  const handleCancel = () => {
-    setFormData(savedData);
-    setIsEditing(false);
-    setError("");
-    setSuccess("");
-  };
-
-  // Mengubah nilai input kata sandi
+  // Mengubah input kata sandi
   const updatePasswordField = (
     field: keyof PasswordForm,
     value: string
@@ -214,6 +152,7 @@ export default function PengaturanPage() {
       ...previous,
       [field]: value,
     }));
+
     setPasswordError("");
   };
 
@@ -221,7 +160,6 @@ export default function PengaturanPage() {
   const openPasswordModal = () => {
     setPasswordForm(emptyPasswordForm);
     setPasswordError("");
-    setPasswordSuccess("");
     setShowPasswords(false);
     setPasswordOpen(true);
   };
@@ -236,10 +174,9 @@ export default function PengaturanPage() {
     setShowPasswords(false);
   };
 
-  // Mengirim perubahan kata sandi ke backend
+  // Menyimpan kata sandi baru
   const handleChangePassword = async () => {
     setPasswordError("");
-    setPasswordSuccess("");
 
     const {
       currentPassword,
@@ -288,304 +225,156 @@ export default function PengaturanPage() {
       const result = await response.json();
 
       if (!response.ok || !result.success) {
-        setPasswordError(
+        throw new Error(
           result.message || "Gagal memperbarui kata sandi."
         );
-        return;
       }
 
-      setPasswordSuccess(
-        result.message || "Kata sandi berhasil diperbarui."
-      );
-
-      setPasswordForm(emptyPasswordForm);
       setPasswordOpen(false);
+      setPasswordForm(emptyPasswordForm);
       setShowPasswords(false);
-      alert("Kata sandi berhasil diperbarui.");
-    } catch {
+
+      alert(result.message || "Kata sandi berhasil diperbarui.");
+    } catch (err) {
       setPasswordError(
-        "Terjadi kesalahan saat menghubungi server."
+        err instanceof Error
+          ? err.message
+          : "Terjadi kesalahan saat menghubungi server."
       );
     } finally {
       setPasswordSaving(false);
     }
   };
 
-  const notificationContent = useMemo(
-    () => (
-      <div className="mt-3 space-y-2">
-        <div className="rounded-[8px] bg-[#F8FAFC] p-3">
-          <p className="text-[11px] font-semibold text-[#14294A]">
-            Laporan baru masuk
-          </p>
-          <p className="mt-1 text-[10px] text-[#64748B]">
-            Jalan Rusak dari Budi Santoso.
-          </p>
-        </div>
-
-        <div className="rounded-[8px] bg-[#F8FAFC] p-3">
-          <p className="text-[11px] font-semibold text-[#14294A]">
-            Laporan diperbarui
-          </p>
-          <p className="mt-1 text-[10px] text-[#64748B]">
-            Status laporan berubah menjadi Diproses.
-          </p>
-        </div>
-      </div>
-    ),
-    []
-  );
-
-  useDashboardHeader({
-    searchPlaceholder: "Cari laporan, warga, atau kata kunci...",
-    notificationContent,
-  });
-
-  const displayValue = (value: string) => value.trim() || "Belum diisi";
-
   return (
     <main className="min-h-screen bg-[#F8FAFC] font-[var(--font-poppins)] text-[#14294A]">
       <section className="min-h-screen">
         <div className="px-[34px] pb-[45px] pt-[36px]">
-          {/* TITLE */}
+          {/* HEADER */}
           <div className="mb-[26px] flex items-center gap-4">
             <button
               type="button"
               onClick={onBackToDashboard}
-              className="flex h-[38px] w-[38px] items-center justify-center rounded-full hover:bg-[#EAF5F2]"
+              className="flex h-[38px] w-[38px] items-center justify-center rounded-full transition hover:bg-[#EAF5F2]"
             >
               <ArrowLeftIcon />
             </button>
 
             <div>
               <h1 className="text-[25px] font-bold leading-tight">
-                Ubah Profil
+                Pengaturan
               </h1>
 
               <p className="mt-[4px] text-[13px] text-[#64748B]">
-                Kelola informasi akun dan profil Anda.
+                Kelola informasi akun dan keamanan administrator.
               </p>
             </div>
           </div>
 
-          {/* NOTIFICATION */}
+          {/* ERROR */}
           {error && (
             <div className="mb-4 rounded-[8px] border border-red-200 bg-red-50 px-4 py-3 text-[12px] text-red-600">
               {error}
             </div>
           )}
 
-          {success && (
-            <div className="mb-4 rounded-[8px] border border-green-200 bg-green-50 px-4 py-3 text-[12px] text-green-700">
-              {success}
-            </div>
-          )}
-
+          {/* PROFILE */}
           {loading ? (
             <div className="rounded-[10px] border border-[#C9D0D8] bg-white p-8 text-center text-[13px] text-[#64748B]">
-              Memuat data profil...
+              Memuat informasi profil...
             </div>
-          ) : (
-            <>
-              {/* PROFILE + INFORMATION */}
-              <div className="grid grid-cols-[225px_1fr] gap-[14px]">
-                {/* PROFILE CARD */}
-                <section className="rounded-[10px] border border-[#C9D0D8] bg-white px-[18px] py-[18px]">
-                  <div className="flex justify-center">
-                    <div className="flex h-[100px] w-[100px] items-center justify-center rounded-full border border-[#14294A] bg-[#F8FAFC]">
-                      <UserLargeIcon />
-                    </div>
-                  </div>
+          ) : profile ? (
+            <section className="overflow-hidden rounded-[10px] border border-[#C9D0D8] bg-white">
+              {/* PROFILE HEADER */}
+              <div className="flex flex-col gap-5 border-b border-[#D9DEE5] px-[24px] py-[24px] sm:flex-row sm:items-center">
+                <div className="flex h-[86px] w-[86px] shrink-0 items-center justify-center rounded-full border border-[#D9DEE5] bg-[#F0FDF8] text-[#087F60]">
+                  <UserLargeIcon />
+                </div>
 
-                  <button
-                    type="button"
-                    disabled
-                    title="Fitur foto profil belum tersedia"
-                    className="mx-auto mt-[8px] flex h-[37px] cursor-not-allowed items-center gap-2 rounded-[7px] border border-[#AEB7C2] bg-white px-[12px] text-[11px] font-medium opacity-60"
-                  >
-                    <ImageIcon />
-                    Ubah foto profil
-                  </button>
+                <div className="min-w-0">
+                  <p className="text-[12px] font-medium text-[#64748B]">
+                    Administrator
+                  </p>
 
-                  {/* SUMMARY */}
-                  <div className="mt-[18px] space-y-[13px]">
-                    <ProfileItem
-                      icon={<UserSmallIcon />}
-                      label="Nama"
-                      value={displayValue(formData.nama)}
-                    />
+                  <h2 className="mt-1 break-words text-[22px] font-bold text-[#14294A]">
+                    {displayValue(profile.nama)}
+                  </h2>
 
-                    <ProfileItem
-                      icon={<MailIcon />}
-                      label="Email"
-                      value={displayValue(formData.email)}
-                    />
+                  <p className="mt-1 break-all text-[14px] text-[#64748B]">
+                    {displayValue(profile.email)}
+                  </p>
 
-                    <ProfileItem
-                      icon={<BriefcaseIcon />}
-                      label="Jabatan"
-                      value={displayValue(formData.jabatan)}
-                    />
+                  <span className="mt-3 inline-flex rounded-full bg-[#EAF8F3] px-3 py-1 text-[11px] font-semibold text-[#087F60]">
+                    {displayValue(profile.jabatan || profile.role)}
+                  </span>
+                </div>
+              </div>
 
-                    <ProfileItem
-                      icon={<PhoneIcon />}
-                      label="No. HP"
-                      value={displayValue(formData.no_telepon)}
-                    />
+              {/* PROFILE INFORMATION */}
+              <div className="px-[24px] py-[22px]">
+                <div className="mb-[20px]">
+                  <h3 className="text-[17px] font-bold text-[#14294A]">
+                    Informasi Akun
+                  </h3>
 
-                    <ProfileItem
+                  <p className="mt-1 text-[12px] text-[#64748B]">
+                    Informasi pribadi administrator yang terdaftar.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 gap-x-[40px] gap-y-[22px] md:grid-cols-2">
+                  <ProfileDetail
+                    icon={<UserSmallIcon />}
+                    label="Nama Lengkap"
+                    value={profile.nama}
+                  />
+
+                  <ProfileDetail
+                    icon={<MailIcon />}
+                    label="Alamat Email"
+                    value={profile.email}
+                  />
+
+                  <ProfileDetail
+                    icon={<BriefcaseIcon />}
+                    label="Jabatan"
+                    value={profile.jabatan}
+                  />
+
+                  <ProfileDetail
+                    icon={<PhoneIcon />}
+                    label="Nomor Telepon"
+                    value={profile.no_telepon}
+                  />
+
+                  <div className="md:col-span-2">
+                    <ProfileDetail
                       icon={<MapPinIcon />}
                       label="Alamat"
-                      value={
-                        formData.alamat.split("\n")[0]?.trim() || "Belum diisi"
-                      }
+                      value={profile.alamat}
+                      multiline
                     />
                   </div>
-                </section>
+                </div>
 
-                {/* INFORMATION CARD */}
-                <section className="rounded-[10px] border border-[#C9D0D8] bg-white">
-                  <div className="flex h-[54px] items-center gap-2 border-b border-[#C9D0D8] px-[15px]">
-                    <UserSmallIcon />
-                    <h2 className="text-[18px] font-bold">
-                      Informasi Akun
-                    </h2>
-                  </div>
-
-                  <div className="px-[18px] py-[15px]">
-                    <p className="mb-[14px] text-[14px] font-bold">
-                      Data Diri
-                    </p>
-
-                    <div className="grid grid-cols-2 gap-x-[90px] gap-y-[15px]">
-                      <Field
-                        label="Nama lengkap"
-                        value={formData.nama}
-                        editing={isEditing}
-                        onChange={(value) => updateField("nama", value)}
-                      />
-
-                      <Field
-                        label="Email"
-                        type="email"
-                        value={formData.email}
-                        editing={isEditing}
-                        onChange={(value) => updateField("email", value)}
-                      />
-
-                      {/* JABATAN */}
-                      <div>
-                        <label className="mb-[6px] block text-[13px]">
-                          Jabatan
-                        </label>
-
-                        {isEditing ? (
-                          <select
-                            value={formData.jabatan}
-                            onChange={(e) =>
-                              updateField("jabatan", e.target.value)
-                            }
-                            className="h-[36px] w-full rounded-[6px] border border-[#AEB7C2] bg-white px-3 text-[12px] outline-none focus:border-[#00A97B]"
-                          >
-                            <option value="">Pilih jabatan</option>
-
-                            {![
-                              "Ketua RT 01",
-                              "Sekretaris RT 01",
-                              "Bendahara RT 01",
-                            ].includes(formData.jabatan) &&
-                              formData.jabatan && (
-                                <option value={formData.jabatan}>
-                                  {formData.jabatan}
-                                </option>
-                              )}
-
-                            <option value="Ketua RT 01">Ketua RT 01</option>
-                            <option value="Sekretaris RT 01">
-                              Sekretaris RT 01
-                            </option>
-                            <option value="Bendahara RT 01">
-                              Bendahara RT 01
-                            </option>
-                          </select>
-                        ) : (
-                          <div className="flex h-[36px] items-center rounded-[6px] border border-[#C9D0D8] px-3 text-[12px]">
-                            {displayValue(formData.jabatan)}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* PHONE */}
-                      <Field
-                        label="No. HP"
-                        value={formData.no_telepon}
-                        editing={isEditing}
-                        onChange={(value) =>
-                          updateField("no_telepon", value)
-                        }
-                      />
-
-                      {/* ADDRESS */}
-                      <div className="col-start-2 row-start-2 row-span-2">
-                        <label className="mb-[6px] block text-[13px]">
-                          Alamat
-                        </label>
-
-                        {isEditing ? (
-                          <textarea
-                            value={formData.alamat}
-                            onChange={(e) =>
-                              updateField("alamat", e.target.value)
-                            }
-                            rows={5}
-                            className="w-full resize-none rounded-[6px] border border-[#AEB7C2] bg-white px-3 py-2 text-[12px] leading-[18px] outline-none focus:border-[#00A97B]"
-                          />
-                        ) : (
-                          <div className="min-h-[115px] whitespace-pre-line rounded-[6px] border border-[#C9D0D8] px-3 py-2 text-[12px] leading-[18px]">
-                            {displayValue(formData.alamat)}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* ACTION */}
-                    <div className="mt-[22px] flex justify-end gap-2">
-                      {isEditing && (
-                        <button
-                          type="button"
-                          onClick={handleCancel}
-                          disabled={saving}
-                          className="h-[38px] rounded-[7px] border border-[#C9D0D8] bg-white px-[17px] text-[12px] font-semibold hover:bg-[#F8FAFC] disabled:opacity-50"
-                        >
-                          Batal
-                        </button>
-                      )}
-
-                      <button
-                        type="button"
-                        disabled={saving}
-                        onClick={() => {
-                          if (isEditing) {
-                            handleSave();
-                          } else {
-                            setError("");
-                            setSuccess("");
-                            setIsEditing(true);
-                          }
-                        }}
-                        className="h-[38px] rounded-[7px] bg-[#B9E4D8] px-[18px] text-[12px] font-semibold text-[#087F60] hover:bg-[#A8DDCF] disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        {saving
-                          ? "Menyimpan..."
-                          : isEditing
-                            ? "Simpan Perubahan"
-                            : "Ubah Profil"}
-                      </button>
-                    </div>
-                  </div>
-                </section>
+                {/* EDIT PROFILE BUTTON */}
+                <div className="mt-[26px] flex justify-end border-t border-[#E2E8F0] pt-[20px]">
+                  <button
+                    type="button"
+                    onClick={handleEditProfile}
+                    className="flex h-[42px] items-center justify-center rounded-[7px] bg-[#B9E4D8] px-[22px] text-[13px] font-semibold text-[#087F60] transition hover:bg-[#A8DDCF]"
+                  >
+                    Ubah Profil
+                  </button>
+                </div>
               </div>
-            </>
+            </section>
+          ) : (
+            <div className="rounded-[10px] border border-[#C9D0D8] bg-white p-8 text-center">
+              <p className="text-[13px] text-[#64748B]">
+                Informasi profil belum dapat ditampilkan.
+              </p>
+            </div>
           )}
 
           {/* SECURITY */}
@@ -597,13 +386,13 @@ export default function PengaturanPage() {
               </h2>
             </div>
 
-            <div className="flex items-center justify-between px-[18px] py-[16px]">
+            <div className="flex flex-col justify-between gap-4 px-[18px] py-[18px] sm:flex-row sm:items-center">
               <div>
-                <p className="text-[13px] font-semibold">
+                <p className="text-[14px] font-semibold">
                   Kata Sandi
                 </p>
 
-                <p className="mt-[3px] text-[11px] text-[#64748B]">
+                <p className="mt-[4px] text-[12px] text-[#64748B]">
                   Ubah kata sandi akun secara berkala untuk menjaga keamanan.
                 </p>
               </div>
@@ -611,7 +400,7 @@ export default function PengaturanPage() {
               <button
                 type="button"
                 onClick={openPasswordModal}
-                className="h-[36px] rounded-[7px] border border-[#C9D0D8] bg-white px-[15px] text-[11px] font-semibold hover:border-[#08B884] hover:bg-[#F0FDF8]"
+                className="h-[40px] shrink-0 rounded-[7px] border border-[#C9D0D8] bg-white px-[17px] text-[12px] font-semibold transition hover:border-[#08B884] hover:bg-[#F0FDF8]"
               >
                 Ubah Kata Sandi
               </button>
@@ -620,11 +409,12 @@ export default function PengaturanPage() {
 
           {/* LOGOUT */}
           <section className="mt-[16px] rounded-[10px] border border-[#FECACA] bg-white">
-            <div className="flex items-center justify-between gap-4 px-[18px] py-[18px]">
+            <div className="flex flex-col justify-between gap-4 px-[18px] py-[18px] sm:flex-row sm:items-center">
               <div>
                 <p className="text-[14px] font-bold text-[#14294A]">
                   Keluar dari Akun
                 </p>
+
                 <p className="mt-[4px] text-[12px] text-[#64748B]">
                   Akhiri sesi akun administrator Anda.
                 </p>
@@ -633,7 +423,7 @@ export default function PengaturanPage() {
               <button
                 type="button"
                 onClick={() => setLogoutOpen(true)}
-                className="flex h-[38px] items-center gap-2 rounded-[7px] border border-[#FECACA] bg-white px-[16px] text-[12px] font-semibold text-[#DC2626] hover:bg-[#FEF2F2]"
+                className="flex h-[40px] shrink-0 items-center justify-center gap-2 rounded-[7px] border border-[#FECACA] bg-white px-[17px] text-[12px] font-semibold text-[#DC2626] transition hover:bg-[#FEF2F2]"
               >
                 <LogoutIcon />
                 Keluar
@@ -645,7 +435,7 @@ export default function PengaturanPage() {
 
       {/* CHANGE PASSWORD MODAL */}
       {passwordOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/30 px-4">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 px-4">
           <div className="w-full max-w-[420px] rounded-[12px] border border-[#D9DEE5] bg-white p-[24px] shadow-xl">
             <div className="flex items-center gap-3">
               <div className="flex h-[42px] w-[42px] items-center justify-center rounded-full bg-[#EAF8F3] text-[#087F60]">
@@ -656,6 +446,7 @@ export default function PengaturanPage() {
                 <h2 className="text-[18px] font-bold text-[#14294A]">
                   Ubah Kata Sandi
                 </h2>
+
                 <p className="mt-1 text-[11px] text-[#64748B]">
                   Masukkan kata sandi lama dan kata sandi baru.
                 </p>
@@ -736,8 +527,8 @@ export default function PengaturanPage() {
 
       {/* LOGOUT CONFIRMATION */}
       {logoutOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/30">
-          <div className="w-[360px] rounded-[12px] border border-[#D9DEE5] bg-white p-[24px] shadow-xl">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-[360px] rounded-[12px] border border-[#D9DEE5] bg-white p-[24px] shadow-xl">
             <div className="text-center">
               <div className="mx-auto flex h-[48px] w-[48px] items-center justify-center rounded-full bg-[#FFF4E5] text-[#D97706]">
                 <LogoutIcon />
@@ -776,70 +567,42 @@ export default function PengaturanPage() {
   );
 }
 
-/* PROFILE ITEM */
-function ProfileItem({
+// PROFILE DETAIL
+function ProfileDetail({
   icon,
   label,
   value,
+  multiline = false,
 }: {
   icon: React.ReactNode;
   label: string;
-  value: string;
+  value?: string | null;
+  multiline?: boolean;
 }) {
   return (
-    <div className="flex items-start gap-[9px]">
-      <div className="mt-[2px]">{icon}</div>
+    <div className="flex items-start gap-3">
+      <div className="mt-[3px] shrink-0 text-[#087F60]">
+        {icon}
+      </div>
 
-      <div className="min-w-0">
-        <p className="text-[18px] font-semibold leading-[18px]">
+      <div className="min-w-0 flex-1">
+        <p className="text-[12px] font-medium text-[#64748B]">
           {label}
         </p>
 
-        <p className="mt-[2px] truncate text-[13px] text-[#14294A]">
-          {value}
+        <p
+          className={`mt-[5px] break-words text-[15px] font-semibold leading-[23px] text-[#14294A] ${
+            multiline ? "whitespace-pre-line" : ""
+          }`}
+        >
+          {value?.trim() || "Belum diisi"}
         </p>
       </div>
     </div>
   );
 }
 
-/* FIELD */
-function Field({
-  label,
-  value,
-  editing,
-  onChange,
-  type = "text",
-}: {
-  label: string;
-  value: string;
-  editing: boolean;
-  onChange: (value: string) => void;
-  type?: string;
-}) {
-  return (
-    <div>
-      <label className="mb-[6px] block text-[13px]">
-        {label}
-      </label>
-
-      {editing ? (
-        <input
-          type={type}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="h-[36px] w-full rounded-[6px] border border-[#AEB7C2] bg-white px-3 text-[12px] outline-none focus:border-[#00A97B]"
-        />
-      ) : (
-        <div className="flex h-[36px] items-center rounded-[6px] border border-[#C9D0D8] px-3 text-[12px]">
-          {value || "Belum diisi"}
-        </div>
-      )}
-    </div>
-  );
-}
-
-/* PASSWORD FIELD */
+// PASSWORD FIELD
 function PasswordField({
   label,
   value,

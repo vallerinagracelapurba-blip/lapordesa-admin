@@ -1,12 +1,13 @@
-
 "use client";
 
+import { useCallback, useMemo, useState } from "react";
 import { useLaporan } from "@/hooks/useLaporan";
 import { nilaiWaktu } from "@/lib/laporan";
 import { useAppNavigation } from "@/hooks/useAppNavigation";
 import { useDashboardHeader } from "@/components/layout/DashboardHeaderContext";
 import { ArrowLeftIcon } from "./DataLaporanIcons";
-import { useMemo, useState } from "react";
+
+const ITEMS_PER_PAGE = 10;
 
 export default function DataLaporanPage() {
   const { onBackToDashboard, onOpenDetail } = useAppNavigation();
@@ -15,6 +16,12 @@ export default function DataLaporanPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("Semua Status");
   const [tanggalFilter, setTanggalFilter] = useState("Terbaru");
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const handleHeaderSearchChange = useCallback((value: string) => {
+    setSearchQuery(value);
+    setCurrentPage(1);
+  }, []);
 
   const filteredData = useMemo(() => {
     return [...laporanData]
@@ -40,6 +47,23 @@ export default function DataLaporanPage() {
         return tanggalFilter === "Terbaru" ? -selisih : selisih;
       });
   }, [laporanData, searchQuery, statusFilter, tanggalFilter]);
+
+  const totalPages = Math.ceil(filteredData.length / ITEMS_PER_PAGE);
+
+  const paginatedData = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredData.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [filteredData, currentPage]);
+
+  const startData =
+    filteredData.length === 0
+      ? 0
+      : (currentPage - 1) * ITEMS_PER_PAGE + 1;
+
+  const endData = Math.min(
+    currentPage * ITEMS_PER_PAGE,
+    filteredData.length
+  );
 
   const notificationContent = useMemo(
     () => (
@@ -72,7 +96,7 @@ export default function DataLaporanPage() {
 
   useDashboardHeader({
     searchValue: searchQuery,
-    onSearchChange: setSearchQuery,
+    onSearchChange: handleHeaderSearchChange,
     searchPlaceholder: "Cari laporan, warga, atau kata kunci...",
     notificationContent,
   });
@@ -105,13 +129,16 @@ export default function DataLaporanPage() {
           <p className="text-[14px] text-[#64748B]">
             {loading
               ? "Memuat data laporan..."
-              : `Menampilkan ${filteredData.length} laporan`}
+              : `Menampilkan ${startData}–${endData} dari ${filteredData.length} laporan`}
           </p>
 
           <div className="flex items-center gap-3">
             <select
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
+              onChange={(e) => {
+                setStatusFilter(e.target.value);
+                setCurrentPage(1);
+              }}
               className="h-[38px] rounded-[7px] border border-[#C9D0D8] bg-white px-3 text-[12px] text-[#475569] outline-none focus:border-[#00B686]"
             >
               <option>Semua Status</option>
@@ -123,7 +150,10 @@ export default function DataLaporanPage() {
 
             <select
               value={tanggalFilter}
-              onChange={(e) => setTanggalFilter(e.target.value)}
+              onChange={(e) => {
+                setTanggalFilter(e.target.value);
+                setCurrentPage(1);
+              }}
               className="h-[38px] rounded-[7px] border border-[#C9D0D8] bg-white px-3 text-[12px] text-[#475569] outline-none focus:border-[#00B686]"
             >
               <option>Terbaru</option>
@@ -182,8 +212,8 @@ export default function DataLaporanPage() {
                     Memuat data laporan...
                   </td>
                 </tr>
-              ) : filteredData.length > 0 ? (
-                filteredData.map((laporan, index) => (
+              ) : paginatedData.length > 0 ? (
+                paginatedData.map((laporan, index) => (
                   <tr
                     key={`${laporan.id}-${index}`}
                     onClick={() => onOpenDetail(laporan.id)}
@@ -239,6 +269,71 @@ export default function DataLaporanPage() {
             </tbody>
           </table>
         </div>
+
+        {/* PAGINATION */}
+        {!loading && filteredData.length > 0 && (
+          <div className="mt-[16px] flex items-center justify-between gap-4">
+            <p className="text-[12px] text-[#64748B]">
+              Halaman {currentPage} dari {totalPages}
+            </p>
+
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                disabled={currentPage === 1}
+                onClick={() =>
+                  setCurrentPage((page) => Math.max(1, page - 1))
+                }
+                aria-label="Halaman sebelumnya"
+                className="flex h-[34px] w-[34px] items-center justify-center rounded-[6px] border border-[#D9DEE5] text-[#475569] hover:bg-[#F1F5F9] disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                ‹
+              </button>
+
+              {Array.from({ length: totalPages }, (_, index) => index + 1)
+                .filter(
+                  (page) =>
+                    page === 1 ||
+                    page === totalPages ||
+                    Math.abs(page - currentPage) <= 1
+                )
+                .map((page, index, pages) => (
+                  <span key={page} className="flex items-center gap-1">
+                    {index > 0 && page - pages[index - 1] > 1 && (
+                      <span className="px-1 text-[#94A3B8]">...</span>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => setCurrentPage(page)}
+                      aria-current={currentPage === page ? "page" : undefined}
+                      className={`h-[34px] min-w-[34px] rounded-[6px] border px-2 text-[12px] font-medium ${
+                        currentPage === page
+                          ? "border-[#00A97B] bg-[#00A97B] text-white"
+                          : "border-[#D9DEE5] bg-white text-[#475569] hover:bg-[#F1F5F9]"
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  </span>
+                ))}
+
+              <button
+                type="button"
+                disabled={currentPage === totalPages}
+                onClick={() =>
+                  setCurrentPage((page) =>
+                    Math.min(totalPages, page + 1)
+                  )
+                }
+                aria-label="Halaman berikutnya"
+                className="flex h-[34px] w-[34px] items-center justify-center rounded-[6px] border border-[#D9DEE5] text-[#475569] hover:bg-[#F1F5F9] disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                ›
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </main>
   );

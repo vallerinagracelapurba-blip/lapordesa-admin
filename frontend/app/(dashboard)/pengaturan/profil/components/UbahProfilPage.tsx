@@ -1,26 +1,44 @@
 
 "use client";
 
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAppNavigation } from "@/hooks/useAppNavigation";
 import { useDashboardHeader } from "@/components/layout/DashboardHeaderContext";
-import { useMemo, useState } from "react";
 
-/* =====================================================
-   PAGE
-===================================================== */
+type ProfileData = {
+  id: number;
+  nama: string;
+  email: string;
+  role: string;
+  jabatan: string | null;
+  no_telepon: string | null;
+  alamat: string | null;
+};
+
+type ProfileForm = {
+  nama: string;
+  email: string;
+  jabatan: string;
+  no_telepon: string;
+  alamat: string;
+};
+
+const emptyForm: ProfileForm = {
+  nama: "",
+  email: "",
+  jabatan: "",
+  no_telepon: "",
+  alamat: "",
+};
 
 export default function UbahProfilPage() {
   const { onBackToPengaturan } = useAppNavigation();
 
-  const [nama, setNama] = useState("Joko Sucipto");
-  const [email, setEmail] = useState("joko@gmail.com");
-  const [jabatan, setJabatan] = useState("Ketua RT 01");
-  const [hp, setHp] = useState("08123456");
-  const [alamat, setAlamat] = useState(
-    "Jl. Melati, RT 01, RW 01\nSukoharjo 1\nKecamatan Sukoharjo\nKabupaten Pringsewu\nLampung"
-  );
-
-  const [saved, setSaved] = useState(false);
+  const [formData, setFormData] = useState<ProfileForm>(emptyForm);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
   const notificationContent = useMemo(
     () => (
@@ -29,7 +47,6 @@ export default function UbahProfilPage() {
           <p className="text-[11px] font-semibold text-[#14294A]">
             Laporan baru masuk
           </p>
-
           <p className="mt-1 text-[10px] text-[#64748B]">
             Laporan Jalan Rusak dari Budi Santoso.
           </p>
@@ -39,7 +56,6 @@ export default function UbahProfilPage() {
           <p className="text-[11px] font-semibold text-[#14294A]">
             Laporan diperbarui
           </p>
-
           <p className="mt-1 text-[10px] text-[#64748B]">
             Status laporan berubah menjadi Diproses.
           </p>
@@ -54,208 +70,333 @@ export default function UbahProfilPage() {
     notificationContent,
   });
 
+  const loadProfile = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError("");
+
+      const response = await fetch("/api/profile", {
+        method: "GET",
+        cache: "no-store",
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success || !result.data) {
+        throw new Error(result.message || "Gagal mengambil data profil.");
+      }
+
+      const profile: ProfileData = result.data;
+
+      setFormData({
+        nama: profile.nama ?? "",
+        email: profile.email ?? "",
+        jabatan: profile.jabatan ?? "",
+        no_telepon: profile.no_telepon ?? "",
+        alamat: profile.alamat ?? "",
+      });
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Terjadi kesalahan saat mengambil data profil."
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadProfile();
+  }, [loadProfile]);
+
+  const updateField = (field: keyof ProfileForm, value: string) => {
+    setFormData((previous) => ({
+      ...previous,
+      [field]: value,
+    }));
+
+    setError("");
+    setSuccess("");
+  };
+
+  const handleSave = async () => {
+    if (!formData.nama.trim() || !formData.email.trim()) {
+      setError("Nama lengkap dan email wajib diisi.");
+      return;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
+      setError("Format email tidak valid.");
+      return;
+    }
+
+    try {
+      setSaving(true);
+      setError("");
+      setSuccess("");
+
+      const response = await fetch("/api/profile", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          nama: formData.nama.trim(),
+          email: formData.email.trim(),
+          jabatan: formData.jabatan,
+          no_telepon: formData.no_telepon.trim(),
+          alamat: formData.alamat.trim(),
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(
+          result.message || "Gagal menyimpan perubahan profil."
+        );
+      }
+
+      if (result.data) {
+        const profile: ProfileData = result.data;
+
+        setFormData({
+          nama: profile.nama ?? "",
+          email: profile.email ?? "",
+          jabatan: profile.jabatan ?? "",
+          no_telepon: profile.no_telepon ?? "",
+          alamat: profile.alamat ?? "",
+        });
+      }
+
+      setSuccess("Profil berhasil diperbarui.");
+
+      setTimeout(() => {
+        onBackToPengaturan();
+      }, 1000);
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Terjadi kesalahan saat menyimpan profil."
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const displayValue = (value: string) =>
+    value.trim() || "Belum diisi";
+
   return (
     <main className="min-h-screen bg-[#F8FAFC] font-[var(--font-poppins)] text-[#14294A]">
-      <section className="min-h-screen">
-        {/* CONTENT */}
-        <div className="px-[34px] pb-[40px] pt-[32px]">
-          {/* TITLE */}
-          <div className="mb-[24px] flex items-center gap-4">
-            <button
-              type="button"
-              onClick={onBackToPengaturan}
-              className="flex h-[38px] w-[38px] items-center justify-center rounded-full hover:bg-[#EAF5F2]"
-            >
-              <ArrowLeftIcon />
-            </button>
+      <div className="px-[34px] pb-[45px] pt-[36px]">
+        {/* TITLE */}
+        <div className="mb-[26px] flex items-center gap-4">
+          <button
+            type="button"
+            onClick={onBackToPengaturan}
+            className="flex h-[42px] w-[42px] items-center justify-center rounded-full hover:bg-[#EAF5F2]"
+            aria-label="Kembali ke pengaturan"
+          >
+            <ArrowLeftIcon />
+          </button>
 
-            <h1 className="text-[25px] font-bold">
+          <div>
+            <h1 className="text-[25px] font-bold leading-tight">
               Ubah Profil
             </h1>
+            <p className="mt-[5px] text-[14px] text-[#64748B]">
+              Perbarui informasi identitas akun administrator Anda.
+            </p>
           </div>
+        </div>
 
-          {/* PROFILE AREA */}
-          <div className="grid grid-cols-[225px_1fr] gap-[12px]">
+        {error && (
+          <div className="mb-4 rounded-[8px] border border-red-200 bg-red-50 px-4 py-3 text-[13px] text-red-600">
+            {error}
+          </div>
+        )}
+
+        {success && (
+          <div className="mb-4 rounded-[8px] border border-green-200 bg-green-50 px-4 py-3 text-[13px] text-green-700">
+            {success}
+          </div>
+        )}
+
+        {loading ? (
+          <div className="rounded-[10px] border border-[#C9D0D8] bg-white p-10 text-center text-[14px] text-[#64748B]">
+            Memuat data profil...
+          </div>
+        ) : (
+          <div className="grid grid-cols-[260px_minmax(0,1fr)] gap-[18px]">
             {/* PROFILE CARD */}
-            <section className="rounded-[9px] border border-[#C9D0D8] bg-white p-[16px]">
+            <section className="rounded-[10px] border border-[#C9D0D8] bg-white p-[20px]">
               <div className="flex flex-col items-center">
-                <div className="flex h-[100px] w-[100px] items-center justify-center rounded-full border border-[#14294A] bg-[#F8FAFC]">
+                <div className="flex h-[110px] w-[110px] items-center justify-center rounded-full border border-[#14294A] bg-[#F8FAFC]">
                   <UserIconLarge />
                 </div>
 
-                <button
-                  type="button"
-                  className="mt-[10px] flex h-[37px] items-center gap-2 rounded-[6px] border border-[#AEB6C0] bg-white px-[12px] text-[12px] font-medium hover:bg-[#EAF5F2]"
-                >
-                  <ImageIcon />
-                  Ubah foto profil
-                </button>
+                <p className="mt-3 text-[14px] font-semibold">
+                  Foto Profil
+                </p>
+                <p className="mt-1 text-center text-[12px] text-[#64748B]">
+                  Foto profil belum tersedia.
+                </p>
               </div>
 
-              <div className="mt-[15px] space-y-[10px]">
+              <div className="mt-[24px] space-y-[20px]">
                 <ProfileInfo
                   icon={<UserSmallIcon />}
                   title="Nama"
-                  value={nama}
+                  value={displayValue(formData.nama)}
                 />
 
                 <ProfileInfo
                   icon={<MailIcon />}
                   title="Email"
-                  value={email}
+                  value={displayValue(formData.email)}
                 />
 
                 <ProfileInfo
                   icon={<DocumentSmallIcon />}
                   title="Jabatan"
-                  value={jabatan}
+                  value={displayValue(formData.jabatan)}
                 />
 
                 <ProfileInfo
                   icon={<PhoneIcon />}
                   title="No. HP"
-                  value={hp}
+                  value={displayValue(formData.no_telepon)}
                 />
 
                 <ProfileInfo
                   icon={<MapPinIcon />}
                   title="Alamat"
-                  value="Jl. Melati, RT 01, RW 01"
+                  value={displayValue(formData.alamat)}
                 />
               </div>
             </section>
 
             {/* FORM CARD */}
-            <section className="rounded-[9px] border border-[#C9D0D8] bg-white">
-              {/* CARD HEADER */}
-              <div className="flex h-[54px] items-center gap-2 border-b border-[#C9D0D8] px-[16px]">
+            <section className="rounded-[10px] border border-[#C9D0D8] bg-white">
+              <div className="flex h-[60px] items-center gap-3 border-b border-[#C9D0D8] px-[20px]">
                 <UserSmallIcon />
-
-                <h2 className="text-[18px] font-bold">
+                <h2 className="text-[19px] font-bold">
                   Informasi Akun
                 </h2>
               </div>
 
-              {/* FORM */}
-              <div className="p-[18px]">
-                <h3 className="mb-[15px] text-[14px] font-bold">
+              <div className="p-[22px]">
+                <h3 className="mb-[20px] text-[16px] font-bold">
                   Data Diri
                 </h3>
 
-                <div className="grid grid-cols-2 gap-x-[28px] gap-y-[15px]">
-                  {/* NAMA */}
+                <div className="grid grid-cols-2 gap-x-[28px] gap-y-[22px]">
+                  <FormField
+                    label="Nama Lengkap"
+                    value={formData.nama}
+                    onChange={(value) => updateField("nama", value)}
+                  />
+
+                  <FormField
+                    label="Email"
+                    type="email"
+                    value={formData.email}
+                    onChange={(value) => updateField("email", value)}
+                  />
+
                   <div>
-                    <label className="mb-[6px] block text-[13px] font-medium">
-                      Nama lengkap
-                    </label>
-
-                    <input
-                      value={nama}
-                      onChange={(e) => setNama(e.target.value)}
-                      className="h-[38px] w-full rounded-[6px] border border-[#BFC7D0] bg-white px-[10px] text-[12px] outline-none focus:border-[#00A97B]"
-                    />
-                  </div>
-
-                  {/* EMAIL */}
-                  <div>
-                    <label className="mb-[6px] block text-[13px] font-medium">
-                      Email
-                    </label>
-
-                    <input
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="h-[38px] w-full rounded-[6px] border border-[#BFC7D0] bg-white px-[10px] text-[12px] outline-none focus:border-[#00A97B]"
-                    />
-                  </div>
-
-                  {/* JABATAN */}
-                  <div>
-                    <label className="mb-[6px] block text-[13px] font-medium">
+                    <label className="mb-[8px] block text-[14px] font-medium">
                       Jabatan
                     </label>
 
                     <select
-                      value={jabatan}
-                      onChange={(e) => setJabatan(e.target.value)}
-                      className="h-[38px] w-full rounded-[6px] border border-[#BFC7D0] bg-white px-[10px] text-[12px] outline-none focus:border-[#00A97B]"
+                      value={formData.jabatan}
+                      onChange={(e) =>
+                        updateField("jabatan", e.target.value)
+                      }
+                      className="h-[44px] w-full rounded-[7px] border border-[#AEB7C2] bg-white px-3 text-[14px] outline-none focus:border-[#00A97B]"
                     >
-                      <option>Ketua RT 01</option>
-                      <option>Pengelola RT 01</option>
-                      <option>Wakil Ketua RT 01</option>
+                      <option value="">Pilih jabatan</option>
+
+                      {![
+                        "Ketua RT 01",
+                        "Sekretaris RT 01",
+                        "Bendahara RT 01",
+                      ].includes(formData.jabatan) &&
+                        formData.jabatan && (
+                          <option value={formData.jabatan}>
+                            {formData.jabatan}
+                          </option>
+                        )}
+
+                      <option value="Ketua RT 01">Ketua RT 01</option>
+                      <option value="Sekretaris RT 01">
+                        Sekretaris RT 01
+                      </option>
+                      <option value="Bendahara RT 01">
+                        Bendahara RT 01
+                      </option>
                     </select>
                   </div>
 
-                  {/* ALAMAT */}
-                  <div className="row-span-2">
-                    <label className="mb-[6px] block text-[13px] font-medium">
+                  <FormField
+                    label="Nomor HP"
+                    value={formData.no_telepon}
+                    onChange={(value) =>
+                      updateField("no_telepon", value)
+                    }
+                  />
+
+                  <div className="col-span-2">
+                    <label className="mb-[8px] block text-[14px] font-medium">
                       Alamat
                     </label>
 
                     <textarea
-                      value={alamat}
-                      onChange={(e) => setAlamat(e.target.value)}
-                      className="h-[105px] w-full resize-none rounded-[6px] border border-[#BFC7D0] bg-white px-[10px] py-[8px] text-[12px] leading-[18px] outline-none focus:border-[#00A97B]"
-                    />
-                  </div>
-
-                  {/* HP */}
-                  <div>
-                    <label className="mb-[6px] block text-[13px] font-medium">
-                      No. HP
-                    </label>
-
-                    <input
-                      value={hp}
-                      onChange={(e) => setHp(e.target.value)}
-                      className="h-[38px] w-full rounded-[6px] border border-[#BFC7D0] bg-white px-[10px] text-[12px] outline-none focus:border-[#00A97B]"
+                      value={formData.alamat}
+                      onChange={(e) =>
+                        updateField("alamat", e.target.value)
+                      }
+                      rows={5}
+                      className="w-full resize-y rounded-[7px] border border-[#AEB7C2] bg-white px-3 py-3 text-[14px] leading-[22px] outline-none focus:border-[#00A97B]"
+                      placeholder="Masukkan alamat lengkap"
                     />
                   </div>
                 </div>
 
-                {/* BUTTON */}
-                <div className="mt-[25px] flex justify-end gap-3 border-t border-[#E1E5EA] pt-[17px]">
+                {/* BUTTONS */}
+                <div className="mt-[28px] flex justify-end gap-3 border-t border-[#E1E5EA] pt-[20px]">
                   <button
                     type="button"
                     onClick={onBackToPengaturan}
-                    className="h-[40px] rounded-[7px] border border-[#BFC7D0] bg-white px-[18px] text-[12px] font-semibold hover:bg-[#F1F5F9]"
+                    disabled={saving}
+                    className="h-[44px] rounded-[7px] border border-[#BFC7D0] bg-white px-[22px] text-[14px] font-semibold hover:bg-[#F1F5F9] disabled:opacity-50"
                   >
                     Batal
                   </button>
 
                   <button
                     type="button"
-                    onClick={() => {
-                      setSaved(true);
-
-                      setTimeout(() => {
-                        setSaved(false);
-                      }, 2000);
-                    }}
-                    className="h-[40px] rounded-[7px] bg-[#8ED2BD] px-[20px] text-[12px] font-semibold text-[#087F60] hover:bg-[#7CC9B1]"
+                    onClick={handleSave}
+                    disabled={saving}
+                    className="h-[44px] rounded-[7px] bg-[#08B884] px-[24px] text-[14px] font-semibold text-white hover:bg-[#079F73] disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    Simpan Perubahan
+                    {saving ? "Menyimpan..." : "Simpan Perubahan"}
                   </button>
                 </div>
-
-                {saved && (
-                  <div className="mt-3 rounded-[6px] bg-[#EAF5F2] px-3 py-2 text-[12px] font-medium text-[#087F60]">
-                    Perubahan profil berhasil disimpan.
-                  </div>
-                )}
               </div>
             </section>
           </div>
-        </div>
-      </section>
+        )}
+      </div>
     </main>
   );
 }
 
-/* =====================================================
-   PROFILE INFO
-===================================================== */
-
+/* PROFILE INFO */
 function ProfileInfo({
   icon,
   title,
@@ -266,15 +407,14 @@ function ProfileInfo({
   value: string;
 }) {
   return (
-    <div className="flex items-start gap-[8px]">
-      <div className="mt-[2px]">{icon}</div>
+    <div className="flex items-start gap-[10px]">
+      <div className="mt-[3px] shrink-0">{icon}</div>
 
-      <div>
-        <p className="text-[17px] font-bold leading-[18px]">
+      <div className="min-w-0 flex-1">
+        <p className="text-[13px] font-medium text-[#64748B]">
           {title}
         </p>
-
-        <p className="text-[13px] leading-[17px] text-[#334155]">
+        <p className="mt-[3px] break-words text-[17px] font-semibold leading-[24px] text-[#14294A]">
           {value}
         </p>
       </div>
@@ -282,22 +422,40 @@ function ProfileInfo({
   );
 }
 
-/* =====================================================
-   ICONS
-===================================================== */
+/* FORM FIELD */
+function FormField({
+  label,
+  value,
+  onChange,
+  type = "text",
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  type?: string;
+}) {
+  return (
+    <div>
+      <label className="mb-[8px] block text-[14px] font-medium">
+        {label}
+      </label>
 
+      <input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="h-[44px] w-full rounded-[7px] border border-[#AEB7C2] bg-white px-3 text-[14px] outline-none focus:border-[#00A97B]"
+      />
+    </div>
+  );
+}
+
+/* ICONS */
 function UserIconLarge() {
   return (
-    <svg
-      width="58"
-      height="58"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.7"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
+    <svg width="62" height="62" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="1.5"
+      strokeLinecap="round" strokeLinejoin="round">
       <circle cx="12" cy="8" r="3.5" />
       <path d="M5 20c.8-3.5 3.1-5 7-5s6.2 1.5 7 5" />
     </svg>
@@ -306,16 +464,9 @@ function UserIconLarge() {
 
 function UserSmallIcon() {
   return (
-    <svg
-      width="22"
-      height="22"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="1.8"
+      strokeLinecap="round" strokeLinejoin="round">
       <circle cx="12" cy="8" r="3.5" />
       <path d="M5 20c.8-3.5 3.1-5 7-5s6.2 1.5 7 5" />
     </svg>
@@ -324,16 +475,9 @@ function UserSmallIcon() {
 
 function MailIcon() {
   return (
-    <svg
-      width="22"
-      height="22"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="1.8"
+      strokeLinecap="round" strokeLinejoin="round">
       <rect x="3" y="5" width="18" height="14" rx="2" />
       <path d="m3 7 9 6 9-6" />
     </svg>
@@ -342,36 +486,20 @@ function MailIcon() {
 
 function DocumentSmallIcon() {
   return (
-    <svg
-      width="22"
-      height="22"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="1.8"
+      strokeLinecap="round" strokeLinejoin="round">
       <rect x="5" y="3" width="14" height="18" rx="2" />
-      <path d="M8 8h8" />
-      <path d="M8 12h8" />
-      <path d="M8 16h5" />
+      <path d="M8 8h8M8 12h8M8 16h5" />
     </svg>
   );
 }
 
 function PhoneIcon() {
   return (
-    <svg
-      width="22"
-      height="22"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="1.8"
+      strokeLinecap="round" strokeLinejoin="round">
       <path d="M6.5 3.5h3l1.5 4-2 1.5c1 2 2.5 3.5 4.5 4.5l1.5-2 4 1.5v3c0 1-1 2-2 2C10 18 6 14 4 7.5c-.3-1.8.5-4 2.5-4Z" />
     </svg>
   );
@@ -379,53 +507,20 @@ function PhoneIcon() {
 
 function MapPinIcon() {
   return (
-    <svg
-      width="22"
-      height="22"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="1.8"
+      strokeLinecap="round" strokeLinejoin="round">
       <path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z" />
       <circle cx="12" cy="10" r="2.5" />
     </svg>
   );
 }
 
-function ImageIcon() {
-  return (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <rect x="3" y="4" width="18" height="16" rx="2" />
-      <circle cx="8" cy="9" r="1.5" />
-      <path d="m21 15-5-5L5 20" />
-    </svg>
-  );
-}
-
 function ArrowLeftIcon() {
   return (
-    <svg
-      width="23"
-      height="23"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
+    <svg width="23" height="23" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="2"
+      strokeLinecap="round" strokeLinejoin="round">
       <path d="M19 12H5" />
       <path d="m12 19-7-7 7-7" />
     </svg>

@@ -1,4 +1,3 @@
-
 "use client";
 
 import type { FormEvent } from "react";
@@ -7,8 +6,10 @@ import { apiFetch } from "@/services/api";
 import { useRouter } from "next/navigation";
 import { useAppNavigation } from "@/hooks/useAppNavigation";
 import { ArrowLeftIcon } from "./DataWargaIcons";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useDashboardHeader } from "@/components/layout/DashboardHeaderContext";
+
+const ITEMS_PER_PAGE = 10;
 
 export default function DataWargaPage() {
   const router = useRouter();
@@ -18,6 +19,7 @@ export default function DataWargaPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
 
   const [showAddForm, setShowAddForm] = useState(false);
   const [nama, setNama] = useState("");
@@ -26,10 +28,15 @@ export default function DataWargaPage() {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
 
+  const handleHeaderSearchChange = useCallback((value: string) => {
+    setSearchQuery(value);
+    setCurrentPage(1);
+  }, []);
+
   const notificationContent = useMemo(
     () => (
       <div>
-        <p className="text-[12px] font-semibold">Datawarga</p>
+        <p className="text-[12px] font-semibold">Data warga</p>
         <p className="mt-1 text-[11px] text-[#64748B]">
           Informasi warga ditampilkan dari database.
         </p>
@@ -40,7 +47,7 @@ export default function DataWargaPage() {
 
   useDashboardHeader({
     searchValue: searchQuery,
-    onSearchChange: setSearchQuery,
+    onSearchChange: handleHeaderSearchChange,
     searchPlaceholder: "Cari nama, nomor HP, atau alamat...",
     notificationContent,
   });
@@ -109,6 +116,7 @@ export default function DataWargaPage() {
       }
 
       setWarga((prev) => [result.data, ...prev]);
+      setCurrentPage(1);
 
       setNama("");
       setAlamat("");
@@ -126,16 +134,48 @@ export default function DataWargaPage() {
     }
   }
 
-  const filteredWarga = warga.filter((item) => {
+  const filteredWarga = useMemo(() => {
     const query = searchQuery.toLowerCase().trim();
 
-    return (
-      !query ||
-      item.nama.toLowerCase().includes(query) ||
-      (item.no_telepon ?? "").toLowerCase().includes(query) ||
-      (item.alamat ?? "").toLowerCase().includes(query)
+    return warga.filter(
+      (item) =>
+        !query ||
+        item.nama.toLowerCase().includes(query) ||
+        (item.no_telepon ?? "").toLowerCase().includes(query) ||
+        (item.alamat ?? "").toLowerCase().includes(query)
     );
-  });
+  }, [warga, searchQuery]);
+
+  const totalPages = Math.ceil(filteredWarga.length / ITEMS_PER_PAGE);
+
+  const paginatedWarga = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+
+    return filteredWarga.slice(
+      startIndex,
+      startIndex + ITEMS_PER_PAGE
+    );
+  }, [filteredWarga, currentPage]);
+
+  const startData =
+    filteredWarga.length === 0
+      ? 0
+      : (currentPage - 1) * ITEMS_PER_PAGE + 1;
+
+  const endData = Math.min(
+    currentPage * ITEMS_PER_PAGE,
+    filteredWarga.length
+  );
+
+  const pageNumbers = Array.from(
+    { length: totalPages },
+    (_, index) => index + 1
+  ).filter(
+    (page) =>
+      page === 1 ||
+      page === totalPages ||
+      Math.abs(page - currentPage) <= 1
+  );
 
   return (
     <main className="min-h-screen bg-[#F8FAFC] font-[var(--font-poppins)] text-[#14294A]">
@@ -145,12 +185,13 @@ export default function DataWargaPage() {
             <button
               type="button"
               onClick={onBackToDashboard}
+              aria-label="Kembali ke Dashboard"
               className="flex h-[38px] w-[38px] items-center justify-center rounded-full hover:bg-[#EAF5F2]"
             >
               <ArrowLeftIcon />
             </button>
 
-            <h1 className="text-[25px] font-bold">DataWarga</h1>
+            <h1 className="text-[25px] font-bold">Data Warga</h1>
           </div>
 
           <button
@@ -214,11 +255,13 @@ export default function DataWargaPage() {
                       </p>
                     </td>
                   </tr>
-                ) : filteredWarga.length > 0 ? (
-                  filteredWarga.map((item) => (
+                ) : paginatedWarga.length > 0 ? (
+                  paginatedWarga.map((item) => (
                     <tr
                       key={item.id}
-                      onClick={() => router.push(`/warga/detail?id=${item.id}`)}
+                      onClick={() =>
+                        router.push(`/warga/detail?id=${item.id}`)
+                      }
                       className="cursor-pointer border-b border-[#D9DEE5] last:border-b-0 hover:bg-[#FAFCFB]"
                     >
                       <td className="px-[14px] py-[14px]">
@@ -226,6 +269,7 @@ export default function DataWargaPage() {
                           <span className="flex h-[32px] w-[32px] shrink-0 items-center justify-center rounded-full bg-[#B9E4D8] text-[11px] font-bold text-[#087F60]">
                             {item.nama.charAt(0).toUpperCase()}
                           </span>
+
                           <span className="text-[12px] font-bold text-[#14294A]">
                             {item.nama}
                           </span>
@@ -261,11 +305,78 @@ export default function DataWargaPage() {
             </table>
           </div>
 
-          <div className="flex h-[50px] items-center justify-between px-[15px]">
+          {/* PAGINATION */}
+          <div className="flex min-h-[60px] flex-wrap items-center justify-between gap-3 border-t border-[#D9DEE5] px-[15px] py-3">
             <p className="text-[12px] text-[#334155]">
-              Menampilkan {filteredWarga.length} dari {warga.length} warga
+              Menampilkan {startData}–{endData} dari {filteredWarga.length} warga
             </p>
+
+            {!loading && !error && totalPages > 1 && (
+              <div className="flex flex-wrap items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setCurrentPage((prev) => Math.max(1, prev - 1))
+                  }
+                  disabled={currentPage === 1}
+                  className="flex h-[32px] min-w-[32px] items-center justify-center rounded-[6px] border border-[#D9DEE5] px-2 text-[12px] text-[#475569] hover:bg-[#EAF5F2] disabled:cursor-not-allowed disabled:opacity-40"
+                  aria-label="Halaman sebelumnya"
+                >
+                  &lt;
+                </button>
+
+                {pageNumbers.map((page, index) => {
+                  const previousPage = pageNumbers[index - 1];
+
+                  return (
+                    <span key={page} className="flex items-center gap-1">
+                      {previousPage && page - previousPage > 1 && (
+                        <span className="px-1 text-[12px] text-[#94A3B8]">
+                          ...
+                        </span>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => setCurrentPage(page)}
+                        aria-label={`Halaman ${page}`}
+                        aria-current={
+                          currentPage === page ? "page" : undefined
+                        }
+                        className={`flex h-[32px] min-w-[32px] items-center justify-center rounded-[6px] border px-2 text-[12px] font-semibold ${
+                          currentPage === page
+                            ? "border-[#087F60] bg-[#087F60] text-white"
+                            : "border-[#D9DEE5] bg-white text-[#475569] hover:bg-[#EAF5F2]"
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    </span>
+                  );
+                })}
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setCurrentPage((prev) =>
+                      Math.min(totalPages, prev + 1)
+                    )
+                  }
+                  disabled={currentPage === totalPages}
+                  className="flex h-[32px] min-w-[32px] items-center justify-center rounded-[6px] border border-[#D9DEE5] px-2 text-[12px] text-[#475569] hover:bg-[#EAF5F2] disabled:cursor-not-allowed disabled:opacity-40"
+                  aria-label="Halaman berikutnya"
+                >
+                  &gt;
+                </button>
+              </div>
+            )}
           </div>
+
+          {!loading && !error && totalPages > 1 && (
+            <p className="pb-3 text-center text-[11px] text-[#94A3B8]">
+              Halaman {currentPage} dari {totalPages}
+            </p>
+          )}
         </section>
       </div>
 
@@ -293,6 +404,7 @@ export default function DataWargaPage() {
                 <label className="mb-2 block text-[12px] font-semibold text-[#334155]">
                   Nama Lengkap <span className="text-red-500">*</span>
                 </label>
+
                 <input
                   type="text"
                   value={nama}
@@ -307,6 +419,7 @@ export default function DataWargaPage() {
                 <label className="mb-2 block text-[12px] font-semibold text-[#334155]">
                   Alamat
                 </label>
+
                 <textarea
                   value={alamat}
                   onChange={(e) => setAlamat(e.target.value)}
@@ -320,6 +433,7 @@ export default function DataWargaPage() {
                 <label className="mb-2 block text-[12px] font-semibold text-[#334155]">
                   Nomor HP
                 </label>
+
                 <input
                   type="tel"
                   inputMode="numeric"
