@@ -15,9 +15,13 @@ function secret() {
   return value;
 }
 
-export function createSession(userId: string | number) {
+export function createSession(
+  userId: string | number,
+  token: string
+) {
   const session: SessionPayload = {
     userId,
+    token,
     expiresAt: Date.now() + SESSION_MAX_AGE * 1000,
   };
 
@@ -28,15 +32,13 @@ export function createSession(userId: string | number) {
     .digest("base64url")}`;
 }
 
-// Memvalidasi session dan mengambil ID pengguna
-export function getSessionUserId(
+export function getSession(
   value?: string
-): string | number | null {
+): SessionPayload | null {
   if (!value) return null;
 
   try {
     const parts = value.split(".");
-
     if (parts.length !== 2) return null;
 
     const [payload, signature] = parts;
@@ -61,21 +63,32 @@ export function getSessionUserId(
     if (
       (typeof session.userId !== "string" &&
         typeof session.userId !== "number") ||
+      typeof session.token !== "string" ||
+      !session.token ||
       typeof session.expiresAt !== "number" ||
       session.expiresAt <= Date.now()
     ) {
       return null;
     }
 
-    return session.userId;
+    return session;
   } catch {
     return null;
   }
 }
 
-// Memeriksa apakah session masih valid
+export function getSessionUserId(
+  value?: string
+): string | number | null {
+  return getSession(value)?.userId ?? null;
+}
+
+export function getSessionToken(value?: string): string | null {
+  return getSession(value)?.token ?? null;
+}
+
 export function verifySession(value?: string): boolean {
-  return getSessionUserId(value) !== null;
+  return getSession(value) !== null;
 }
 
 export const sessionCookieOptions = {

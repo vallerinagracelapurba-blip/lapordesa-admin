@@ -5,16 +5,14 @@ import {
   getLaporanDetail,
   updateStatusLaporan,
 } from "../controllers/laporanController.js";
+import { requireAuth } from "../middleware/requireAuth.js";
 
 const router = Router();
 
-// GET semua laporan
+router.use(requireAuth);
+
 router.get("/", getLaporan);
-
-// UPDATE status laporan
 router.patch("/:id/status", updateStatusLaporan);
-
-// GET detail laporan berdasarkan ID
 router.get("/:id", getLaporanDetail);
 
 export default router;

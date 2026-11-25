@@ -1,5 +1,6 @@
 
 import type { Request, Response } from "express";
+
 import {
   getAllWarga,
   getWargaById,
@@ -39,7 +40,7 @@ export async function getWargaDetail(
   try {
     const id = Number(req.params.id);
 
-    if (!Number.isInteger(id) || id <= 0) {
+    if (!Number.isSafeInteger(id) || id <= 0) {
       res.status(400).json({
         success: false,
         message: "ID warga tidak valid.",
@@ -77,12 +78,34 @@ export async function postWarga(
   res: Response
 ): Promise<void> {
   try {
+    if (
+      !req.body ||
+      typeof req.body !== "object" ||
+      Array.isArray(req.body)
+    ) {
+      res.status(400).json({
+        success: false,
+        message: "Body request tidak valid.",
+      });
+      return;
+    }
+
     const { nama, alamat, no_telepon } = req.body;
 
     if (typeof nama !== "string" || !nama.trim()) {
       res.status(400).json({
         success: false,
         message: "Nama warga wajib diisi.",
+      });
+      return;
+    }
+
+    const namaBersih = nama.trim();
+
+    if (namaBersih.length > 100) {
+      res.status(400).json({
+        success: false,
+        message: "Nama maksimal 100 karakter.",
       });
       return;
     }
@@ -99,6 +122,17 @@ export async function postWarga(
       return;
     }
 
+    const alamatBersih =
+      typeof alamat === "string" ? alamat.trim() : "";
+
+    if (alamatBersih.length > 255) {
+      res.status(400).json({
+        success: false,
+        message: "Alamat maksimal 255 karakter.",
+      });
+      return;
+    }
+
     if (
       no_telepon !== undefined &&
       no_telepon !== null &&
@@ -111,29 +145,26 @@ export async function postWarga(
       return;
     }
 
-    // Validasi nomor HP: hanya boleh berisi angka.
+    const teleponBersih =
+      typeof no_telepon === "string"
+        ? no_telepon.trim()
+        : "";
+
     if (
-      typeof no_telepon === "string" &&
-      no_telepon.trim() !== "" &&
-      !/^\d+$/.test(no_telepon.trim())
+      teleponBersih &&
+      !/^\d{10,15}$/.test(teleponBersih)
     ) {
       res.status(400).json({
         success: false,
-        message: "Nomor HP hanya boleh berisi angka.",
+        message: "Nomor HP harus berisi 10 sampai 15 angka.",
       });
       return;
     }
 
     const warga = await createWarga({
-      nama: nama.trim(),
-      alamat:
-        typeof alamat === "string" && alamat.trim()
-          ? alamat.trim()
-          : null,
-      no_telepon:
-        typeof no_telepon === "string" && no_telepon.trim()
-          ? no_telepon.trim()
-          : null,
+      nama: namaBersih,
+      alamat: alamatBersih || null,
+      no_telepon: teleponBersih || null,
     });
 
     if (!warga) {
@@ -167,7 +198,7 @@ export async function deleteWargaById(
   try {
     const id = Number(req.params.id);
 
-    if (!Number.isInteger(id) || id <= 0) {
+    if (!Number.isSafeInteger(id) || id <= 0) {
       res.status(400).json({
         success: false,
         message: "ID warga tidak valid.",

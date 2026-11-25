@@ -1,9 +1,10 @@
 
 import { Router } from "express";
 import dashboardController from "../controllers/dashboardController.js";
+import { requireAuth } from "../middleware/requireAuth.js";
 
 const router = Router();
 
-router.get("/", dashboardController);
+router.get("/", requireAuth, dashboardController);
 
 export default router;

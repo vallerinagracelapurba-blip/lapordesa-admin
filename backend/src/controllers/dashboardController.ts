@@ -32,9 +32,17 @@ interface TrendRow extends RowDataPacket {
 }
 
 function getPeriod(value: unknown): number {
+  if (value === undefined) {
+    return 7;
+  }
+
+  if (typeof value !== "string") {
+    return 0;
+  }
+
   const parsed = Number(value);
 
-  return [7, 14, 30].includes(parsed) ? parsed : 7;
+  return [7, 14, 30].includes(parsed) ? parsed : 0;
 }
 
 const dashboardController = async (
@@ -45,6 +53,14 @@ const dashboardController = async (
     const summaryDays = getPeriod(req.query.summaryDays);
     const trendDays = getPeriod(req.query.trendDays);
 
+    if (!summaryDays || !trendDays) {
+      res.status(400).json({
+        success: false,
+        message: "Periode dashboard harus 7, 14, atau 30 hari.",
+      });
+      return;
+    }
+
     const summaryStart = summaryDays - 1;
     const trendStart = trendDays - 1;
 
@@ -54,7 +70,6 @@ const dashboardController = async (
       [categorySummary],
       [trend],
     ] = await Promise.all([
-      // Statistik seluruh laporan
       db.query<DashboardStatsRow[]>(`
         SELECT
           COUNT(*) AS total,
@@ -65,7 +80,6 @@ const dashboardController = async (
         FROM laporan
       `),
 
-      // Empat laporan terbaru
       db.query<RecentReportRow[]>(`
         SELECT
           l.id,
@@ -82,7 +96,6 @@ const dashboardController = async (
         LIMIT 4
       `),
 
-      // Ringkasan kategori sesuai periode
       db.query<CategoryRow[]>(
         `
           SELECT
@@ -93,15 +106,15 @@ const dashboardController = async (
           LEFT JOIN kategori_laporan k
             ON l.kategori_id = k.id
           WHERE l.created_at >= DATE_SUB(
-            CURDATE(), INTERVAL ${summaryStart} DAY
+            CURDATE(), INTERVAL ? DAY
           )
             AND l.created_at < DATE_ADD(CURDATE(), INTERVAL 1 DAY)
           GROUP BY k.id, k.nama_kategori
           ORDER BY total DESC
-        `
+        `,
+        [summaryStart]
       ),
 
-      // Tren laporan per tanggal
       db.query<TrendRow[]>(
         `
           SELECT
@@ -109,12 +122,13 @@ const dashboardController = async (
             COUNT(*) AS total
           FROM laporan l
           WHERE l.created_at >= DATE_SUB(
-            CURDATE(), INTERVAL ${trendStart} DAY
+            CURDATE(), INTERVAL ? DAY
           )
             AND l.created_at < DATE_ADD(CURDATE(), INTERVAL 1 DAY)
           GROUP BY DATE(l.created_at)
           ORDER BY DATE(l.created_at) ASC
-        `
+        `,
+        [trendStart]
       ),
     ]);
 
@@ -132,7 +146,7 @@ const dashboardController = async (
 
     res.status(500).json({
       success: false,
-      message: "Gagal mengambil data dashboard",
+      message: "Gagal mengambil data dashboard.",
     });
   }
 };

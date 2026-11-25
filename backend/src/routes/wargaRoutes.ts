@@ -6,19 +6,15 @@ import {
   postWarga,
   deleteWargaById,
 } from "../controllers/wargaController.js";
+import { requireAuth } from "../middleware/requireAuth.js";
 
 const router = Router();
 
-// GET semua warga
+router.use(requireAuth);
+
 router.get("/", getWarga);
-
-// POST tambah warga
 router.post("/", postWarga);
-
-// DELETE warga berdasarkan ID
 router.delete("/:id", deleteWargaById);
-
-// GET detail warga berdasarkan ID
 router.get("/:id", getWargaDetail);
 
 export default router;

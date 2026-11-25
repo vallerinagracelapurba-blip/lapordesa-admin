@@ -1,6 +1,7 @@
 
 import type { Request, Response } from "express";
 import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
 import { getUserByEmail } from "../models/userModel.js";
 
 export async function getUserByEmailController(
@@ -8,9 +9,16 @@ export async function getUserByEmailController(
   res: Response
 ): Promise<void> {
   try {
-    const email = String(req.params.email ?? "").trim();
+    const email =
+      typeof req.params.email === "string"
+        ? req.params.email.trim()
+        : "";
 
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    if (
+      !email ||
+      email.length > 254 ||
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+    ) {
       res.status(400).json({
         success: false,
         message: "Format email tidak valid.",
@@ -52,13 +60,22 @@ export async function loginController(
   res: Response
 ): Promise<void> {
   try {
-    const email = String(req.body?.email ?? "").trim();
-    const password = String(req.body?.password ?? "");
+    const email =
+      typeof req.body?.email === "string"
+        ? req.body.email.trim()
+        : "";
+
+    const password =
+      typeof req.body?.password === "string"
+        ? req.body.password
+        : "";
 
     if (
       !email ||
+      email.length > 254 ||
       !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
-      !password
+      !password ||
+      password.length > 128
     ) {
       res.status(400).json({
         success: false,
@@ -77,6 +94,28 @@ export async function loginController(
       return;
     }
 
+    const jwtSecret = process.env.JWT_SECRET;
+
+    if (!jwtSecret) {
+      res.status(500).json({
+        success: false,
+        message: "Konfigurasi autentikasi server belum tersedia.",
+      });
+      return;
+    }
+
+    const token = jwt.sign(
+      {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+      },
+      jwtSecret,
+      {
+        expiresIn: "8h",
+      }
+    );
+
     res.status(200).json({
       success: true,
       message: "Login berhasil.",
@@ -85,6 +124,7 @@ export async function loginController(
         nama: user.nama,
         email: user.email,
         role: user.role,
+        token,
       },
     });
   } catch (error) {

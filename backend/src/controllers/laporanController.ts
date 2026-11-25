@@ -18,27 +18,57 @@ const STATUS_VALID = [
   "Ditolak",
 ] as const;
 
+type StatusLaporan = (typeof STATUS_VALID)[number];
+
 export async function getLaporan(
   req: Request,
   res: Response
 ): Promise<void> {
   try {
-    const requestedPage = Number(req.query.page) || 1;
-    const requestedLimit = Number(req.query.limit) || 10;
-
-    const page =
-      Number.isInteger(requestedPage) && requestedPage > 0
-        ? requestedPage
+    const pageValue =
+      typeof req.query.page === "string"
+        ? Number(req.query.page)
         : 1;
 
-    const limit = [10, 15, 20].includes(requestedLimit)
-      ? requestedLimit
-      : 10;
+    const limitValue =
+      typeof req.query.limit === "string"
+        ? Number(req.query.limit)
+        : 10;
+
+    if (
+      !Number.isSafeInteger(pageValue) ||
+      pageValue < 1
+    ) {
+      res.status(400).json({
+        success: false,
+        message: "Nomor halaman tidak valid.",
+      });
+      return;
+    }
+
+    if (![10, 15, 20].includes(limitValue)) {
+      res.status(400).json({
+        success: false,
+        message: "Limit harus 10, 15, atau 20.",
+      });
+      return;
+    }
+
+    const page = pageValue;
+    const limit = limitValue;
 
     const search =
       typeof req.query.search === "string"
         ? req.query.search.trim()
         : "";
+
+    if (search.length > 100) {
+      res.status(400).json({
+        success: false,
+        message: "Pencarian maksimal 100 karakter.",
+      });
+      return;
+    }
 
     const requestedStatus =
       typeof req.query.status === "string"
@@ -46,7 +76,7 @@ export async function getLaporan(
         : "";
 
     const status = STATUS_VALID.includes(
-      requestedStatus as (typeof STATUS_VALID)[number]
+      requestedStatus as StatusLaporan
     )
       ? requestedStatus
       : "";
@@ -57,6 +87,14 @@ export async function getLaporan(
         : "Terbaru";
 
     const offset = (page - 1) * limit;
+
+    if (!Number.isSafeInteger(offset)) {
+      res.status(400).json({
+        success: false,
+        message: "Nomor halaman terlalu besar.",
+      });
+      return;
+    }
 
     const [laporan, total] = await Promise.all([
       getLaporanPaginated(
@@ -99,7 +137,7 @@ export async function getLaporanDetail(
   try {
     const id = Number(req.params.id);
 
-    if (!Number.isInteger(id) || id <= 0) {
+    if (!Number.isSafeInteger(id) || id <= 0) {
       res.status(400).json({
         success: false,
         message: "ID laporan tidak valid.",
@@ -143,12 +181,7 @@ export async function updateStatusLaporan(
   try {
     const id = Number(req.params.id);
 
-    const { status, catatan } = req.body as {
-      status?: string;
-      catatan?: string;
-    };
-
-    if (!Number.isInteger(id) || id <= 0) {
+    if (!Number.isSafeInteger(id) || id <= 0) {
       res.status(400).json({
         success: false,
         message: "ID laporan tidak valid.",
@@ -157,8 +190,23 @@ export async function updateStatusLaporan(
     }
 
     if (
+      !req.body ||
+      typeof req.body !== "object" ||
+      Array.isArray(req.body)
+    ) {
+      res.status(400).json({
+        success: false,
+        message: "Body request tidak valid.",
+      });
+      return;
+    }
+
+    const status: unknown = req.body.status;
+    const catatan: unknown = req.body.catatan;
+
+    if (
       typeof status !== "string" ||
-      !STATUS_VALID.includes(status as (typeof STATUS_VALID)[number])
+      !STATUS_VALID.includes(status as StatusLaporan)
     ) {
       res.status(400).json({
         success: false,
@@ -178,10 +226,23 @@ export async function updateStatusLaporan(
       return;
     }
 
+    const catatanBersih =
+      typeof catatan === "string"
+        ? catatan.trim()
+        : "";
+
+    if (catatanBersih.length > 1000) {
+      res.status(400).json({
+        success: false,
+        message: "Catatan maksimal 1000 karakter.",
+      });
+      return;
+    }
+
     const hasilUpdate = await updateLaporanStatus(
       id,
-      status as (typeof STATUS_VALID)[number],
-      catatan?.trim() || null
+      status as StatusLaporan,
+      catatanBersih || null
     );
 
     if (!hasilUpdate) {
